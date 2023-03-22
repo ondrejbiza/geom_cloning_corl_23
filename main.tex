@@ -21,6 +21,11 @@
 \usepackage{subcaption}
 \usepackage{wrapfig}
 
+% algorithms
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\newcommand{\minuseq}{\mathrel{-}=}
+
 % colors
 \usepackage{xcolor}
 \newcommand{\ob}[1]{\textcolor{purple}{[\textbf{OB:} #1]}}
@@ -158,16 +163,17 @@ Contact warping \citep{brandi14Generalizing,hillenbrand12Transferring,jakel12Lea
 -- \cite{rodriguez18Transferringa,rodriguez18Transferringb}: Similar to Skye's method; they learn a latent space of displacements w.r.t. a canonical point cloud using PCA. During inference, they use gradient descent to solve for both shape and pose. But, they do not tackle the problem of local minima and hence require the shapes to be already almost in alignment. I could give the example of a handle of a mug getting hidden because of local minima and how we solve that. They then use the latent space to somehow warp the grasp actions of a humanoid hand.
 
 \section{Background: Object Warping}
+\label{sec:background}
 
-\begin{wrapfigure}{r}{0.5\textwidth}
-    \centering
-    \vspace{-2em}
-    \includegraphics[width=0.24\textwidth]{figures/blender/warp1/canon_over_orig.png}
-    \includegraphics[width=0.24\textwidth]{figures/blender/warp1/warped_over_orig.png}
-    \caption{Source (yellow) and target (red) objects before and after CPD warping.}
-    \label{fig:obj_warp}
-    \vspace{-1em}
-\end{wrapfigure}
+% \begin{wrapfigure}{r}{0.5\textwidth}
+%     \centering
+%     \vspace{-2em}
+%     \includegraphics[width=0.24\textwidth]{figures/blender/warp1/canon_over_orig.png}
+%     \includegraphics[width=0.24\textwidth]{figures/blender/warp1/warped_over_orig.png}
+%     \caption{Source (yellow) and target (red) objects before and after CPD warping.}
+%     \label{fig:obj_warp}
+%     \vspace{-1em}
+% \end{wrapfigure}
 Object warping alters the mesh of an object, so that it approximately matches the shape of a different object, usually from the same class. Most object warping approaches turn object meshes into point clouds, which can be warped using techniques from non-rigid Point Set Registration \cite{zhu19Review}. In particular, the Coherent Point Drift (CPD) algorithm \cite{myronenko10point} translates each point in the source point cloud independently, but regularizes the movement of points to be coherent in local regions using frequency-basis regularization. For example, it can warp a small mug onto a larger mug without pulling it inside out, which would be incoherent.
 
 Shape-based Skill Transfer - Warping (SST-W) \cite{thompson21ShapeBased} learns a low-dimensional latent space of object shapes based on the outputs of CPD on a training set. The benefits of SST-W compared to only using object warping are twofold: the latent space can define a generative model of possible object shapes and a gradient decent procedure can be used to fit complete object shapes to partial point clouds. We review their algorithm below:
@@ -186,70 +192,129 @@ We formulate the object re-arrangement problem as a problem of predicting a pair
 
 \section{Method: SA-Warp}
 
+\begin{algorithm}[H]
+
+\caption{Warp Learning}\label{alg:warp_learn} 
+
+\begin{flushleft}
+    \hspace*{\algorithmicindent} \textbf{Input:} Meshes of $K$ example object instances $\{ \mathrm{obj}_1, \mathrm{obj}_2, ..., \mathrm{obj}_K \}$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Canonical point cloud, vertices and faces and a latent space of warps. \\
+    \hspace*{\algorithmicindent} \textbf{Parameters:} Smoothness of CPD warping $\alpha$ and number of PCA components $L$.
+\end{flushleft}
+
+\begin{algorithmic}[1]
+
+    \State $\mathrm{PCD} = \left< \mathrm{SampleS}(\mathrm{obj}_i) \right>_{i=1}^K$. \Comment{\textcolor{blue}{Sample a small point cloud per object (Appendix \ref{appendix:method:sampling}).}}
+    \State $C = \mathrm{SelectCanonical}(\mathrm{PCD})$. \Comment{\textcolor{blue}{Select a canonical object with index $C$ (Appendix \ref{appendix:method:canonical}).}}
+    \State $\mathrm{canon} = \mathrm{Concat}(\mathrm{obj}_C.\mathrm{vertices}, \mathrm{SampleL}(\mathrm{obj}_C))$. \Comment{\textcolor{blue}{Use both vertices and surface samples.}}
+    \For {$i \in \{ 1, 2, ..., K \}, i \neq C$}
+        \State $W_{C \rightarrow i} = \mathrm{CPD}(\mathrm{canon}, \mathrm{PCD}_i, \alpha)$. \Comment{\textcolor{blue}{Coherent Point Drift warping (Section \ref{sec:background}).}}
+    \EndFor
+    \State $D_W = \{ \mathrm{Flatten}(W_{C \rightarrow i}) \}_{i = 1, i \neq C}^K$. \Comment{\textcolor{blue}{Dataset of displacements of $\mathrm{canon}$.}}
+    \State $\mathrm{PCA} = \mathrm{FitPCA}(D_W, \mathrm{n\_components}=L)$. \Comment{\textcolor{blue}{Learn a latent space of canonical object warps.}}
+    \State \Return $\mathrm{Canon}\left(\mathrm{points} = \mathrm{canon}, \mathrm{vertices} = \mathrm{obj}_C.\mathrm{vertices}, \mathrm{faces} = \mathrm{obj}_C.\mathrm{faces}\right), \mathrm{PCA}$.
+
+\end{algorithmic}
+
+\end{algorithm}
+
+\begin{algorithm}[H]
+
+\caption{Warp Inference and Mesh Reconstruction}\label{alg:warp_infer} 
+
+\begin{flushleft}
+    \hspace*{\algorithmicindent} \textbf{Input:} Observed point cloud $\mathrm{pcd}$, canonical object $\mathrm{canon}$ and latent space $\mathrm{PCA}$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Predicted latent shape $v$ and pose $T$. \\
+    \hspace*{\algorithmicindent} \textbf{Parameters:} Number of random starts $S$, number of gradient descent steps $T$, learning rate $\eta$ and object size regularization $\beta$.
+\end{flushleft}
+
+\begin{algorithmic}[1]
+
+    \State $t_{\mathrm{global}} = \mathrm{Mean}(\mathrm{pcd}, \mathrm{dim}=0)$.
+    \State $\mathrm{pcd} = \mathrm{pcd} - t_{\mathrm{global}}$. \Comment{\textcolor{blue}{Center the point cloud.}}
+    \For {$i \in \{ 1, 2, ..., S \}$}
+        \State $R_{\mathrm{init}} \leftarrow$ Random initial 3D rotation matrix.
+        \State Initialize $v = [0]*L, t_{\mathrm{local}} = [0]*3, r = [[1, 0, 0], [0, 1, 0]], s = [1]*3$.
+        \State Initialize $\mathrm{Adam}$ \cite{kingma15adam} with parameters $v, t_{\mathrm{local}}, r, s$ and learning rate $\eta$.
+        \For {$j \in \{ 1, 2, ..., T \}$}
+            \State $\delta = \mathrm{PCA.inverse\_transform}(v)\mathrm{.reshape(-1, 3)}$.
+            \State $X = \mathrm{canon.points} + \delta$. \Comment{\textcolor{blue}{Warped canonical point cloud.}}
+            \State $R = \mathrm{GramSchmidt(r)}$.
+            \State $X = (X * s) R_{\mathrm{init}}^T R^T + t_{\mathrm{local}}$. \Comment{\textcolor{blue}{Scaled, rotated and translated point cloud.}}
+            \State $\mathcal{L} = \sum_k^{|\mathrm{pcd}|} \min_l^{|X|} \norm{\mathrm{pcd}_k - X_l}_2^2$. \Comment{\textcolor{blue}{One-sided Chamfer distance.}}
+            \State $\mathcal{L} = \mathcal{L} + \beta \max_l^{|X|} \norm{X_l}_2^2$. \Comment{\textcolor{blue}{Object size regularization.}}
+            \State Take a gradient step to minimize $\mathcal{L}$ using $\mathrm{Adam}$.
+        \EndFor
+    \EndFor
+    \State Find parameters $v^*, t^*_{\mathrm{local}}, R_{\mathrm{init}}^*, R^*, s^*$ with the lowest final loss across $\{ 1, 2, ..., S \}$.
+    \State $X = \mathrm{canon.points} +\mathrm{PCA.inverse\_transform}(v^*)\mathrm{.reshape(-1, 3)}$.
+    \State $X = (X * s^*) R_{\mathrm{init}}^{*T} R^{*T} + t^*_{\mathrm{local}} + t_{\mathrm{global}}$. \Comment{\textcolor{blue}{Complete point cloud in workspace coordinates.}}
+    \State $\mathrm{vertices} = X[:|\mathrm{canon.vertices}|]$. \Comment{\textcolor{blue}{First $|\mathrm{canon.vertices}|$ points of $X$ are vertices.}}
+    \State \Return $\mathrm{Mesh}(\mathrm{vertices} = \mathrm{vertices}, \mathrm{faces} = \mathrm{canon.faces})$. \Comment{\textcolor{blue}{Warped mesh.}}
+
+\end{algorithmic}
+
+\end{algorithm}
+
 In this section, we propose a method, SA-Warp, for behavior cloning of $\mathrm{SE(3)}$ object re-arrangement policies from a single demonstration. Our method has three main components that make it work on a real-world robot: (1) hybrid mesh and point cloud warping to enable the detection of contact points and collision avoidance during motion planning, (2) joints estimation of object shape and pose in 3D using gradient descent and (3) cloning of contact points and nearby points to enable transfer of pick and place actions across object instances.
 
 \begin{figure}
     \centering
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/11.png}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/12.png}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/13.png}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/14.png}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/15.png}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/21.png}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/22.png}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/23.png}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/24.png}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.19\textwidth}
-        \includegraphics[width=\textwidth]{figures/blender/warp3/25.png}
-    \end{subfigure}
-    \caption{Traversing the first (top row) and second (bottom row) axis of the PCA latent space of warped mugs.}
+    \includegraphics[width=\textwidth]{figures/warping.pdf}
+    \caption{Example of warping using CPD and gradient descent with a latent space of warps of a canonical mug. Gradient descent warping works with partial point clouds.}
     \label{fig:latent}
 \end{figure}
 
 \begin{figure}
-    \begin{subfigure}[b]{0.6\textwidth}
-        \centering
-        \includegraphics[width=0.32\textwidth]{figures/blender/warp4/3.png}
-        \includegraphics[width=0.32\textwidth]{figures/blender/warp4/4.png}
-        \includegraphics[width=0.32\textwidth]{figures/blender/warp4/5.png}
-        \caption{Change in the pick pose based on the shape of the target object. We hold the gripper fixed and calculate the pose of the object to be the best fit between the pairs of contact points on the object and the gripper.}
-        \label{fig:pick_warps}
-    \end{subfigure}
-    \hspace{0.01\textwidth}
-    \begin{subfigure}[b]{0.39\textwidth}
-        \centering
-        \includegraphics[width=0.49\textwidth]{figures/blender/warp2/mug_tree_2.png}
-        \includegraphics[width=0.49\textwidth]{figures/blender/warp2/mug_tree_3.png}
-        \caption{Change in the placement pose of a mug calculated using the contact points between the mugs handle and the trees branch. Contacts are extracted from a demonstration.}
-        \label{fig:place_warps}
-    \end{subfigure}
-    \caption{}
+    \centering
+    \includegraphics[width=\textwidth]{figures/latent_mugs.pdf}
+    \caption{Traversing the latent space of warps of a canonical mug. We show the first two out of eight principal components.}
+    \label{fig:latent}
 \end{figure}
 
-\subsection{Hybrid Mesh and Point Cloud Warping}
+\begin{figure}
+    \centering
+    \begin{subfigure}[b]{0.25\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/contact_fig1.pdf}
+        \caption{}
+    \end{subfigure}
+    \hspace{0.05\textwidth}
+    \begin{subfigure}[b]{0.25\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/contact_fig3.pdf}
+        \caption{}
+    \end{subfigure}
+    \hspace{0.05\textwidth}
+    \begin{subfigure}[b]{0.25\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/contact_fig2.pdf}
+        \caption{}
+    \end{subfigure}
+    \caption{(a) Contacts between a gripper and a bowl extracted from a demonstration. (b) Nearby points between a mug and a tree extracted from a demonstration of hanging the mug on the tree. (c) A virtual point (red) representing the branch of the tree intersection the handle of the mug. The red point anchored to the mug using k nearest neighbors on the mug (four are shown in greed) and moves as the mug warps. Note that all points shown in this visualization are extracted automatically.}
+    \label{fig:contacts}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{figures/picks_and_places.pdf}
+    \caption{}
+    \label{fig:latent}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{figures/method_figure.pdf}
+    \caption{Main method figure. I'll fill it in with real-world images later.}
+    \label{fig:latent}
+\end{figure}
+
+\subsection{Hybrid Point Cloud and Mesh Warping}
 \label{sec:methods:mesh}
 
 
 
-\subsection{Object Warping and Pose Estimation in $\mathrm{SE}(3)$}
+\subsection{Mesh Warping and Pose Estimation in $\mathrm{SE}(3)$}
 \label{sec:methods:scene}
 
 \ob{-- Work in progress. -- }
@@ -328,38 +393,35 @@ Using the above method, we receive pairs of contact points in a novel scene. We 
     \label{tab:real_world}
 \end{table*}
 
-\begin{table*}[t!]
-    \begin{minipage}{.6\linewidth}
-        \centering
-        \begin{tabular}{lcccccc}
-            \toprule
-              & \multicolumn{2}{c}{\textbf{Mug on Tree}} & \multicolumn{2}{c}{\textbf{Bowl on Mug}} & \multicolumn{2}{c}{\textbf{Bottle in Container}} \\
-             \textbf{Method} & Upright & Arbitrary & Upright & Arbitrary & Upright & Arbitrary \\
-             \midrule
-             R-NDF$^1$ & 84.0 & 75.0 & 74.0 & 70.0 & 80.0 & \textbf{75.0} \\
-             R-NDF$^2$ & 71.0 & 70.0 & 69.0 & 60.0 & 81.0 & 59.0 \\
-             \textbf{SA-Warp} & \textbf{85.0} & \textbf{82.0} & \textbf{81.0} & \textbf{78.0} & \textbf{88.0} & 69.0 \\
-             \bottomrule
-        \end{tabular}
-        \caption{Success rates of predicted target poses of objects in \hl{simulation}. Upright and arbitrary starting object poses. $^1$As reported in \citet{simeonov22Neurala}. $^2$As measured for the open-source version of \citet{simeonov22Neurala}.}
-        \label{tab:simulation}
-    \end{minipage}\hspace{1em}
-    \begin{minipage}{.4\linewidth}
-        \centering
-        \begin{tabular}{lccc}
-            \toprule
-             \textbf{Method} & \# Train. Objects & \# Demos. & Labels \\
-             \midrule
-             NDF & 200 & 5-10 & Yes \\
-             R-NDF & 200 & 5-10 & Yes \\
-             TAX-Pose & 200 & 5-10 & No \\
-             \textbf{SA-Warp} & \textbf{10} & \textbf{1} & \textbf{No} \\
-             \bottomrule
-        \end{tabular}
-        \caption{Required training objects, training demonstrations and additional labeled data across methods.}
-        \label{tab:training}
-    \end{minipage}
-\end{table*}
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lcccccc}
+        \toprule
+          & \multicolumn{2}{c}{\textbf{Mug on Tree}} & \multicolumn{2}{c}{\textbf{Bowl on Mug}} & \multicolumn{2}{c}{\textbf{Bottle in Container}} \\
+         \textbf{Method} & Upright & Arbitrary & Upright & Arbitrary & Upright & Arbitrary \\
+         \midrule
+         R-NDF$^1$ & 84.0 & 75.0 & 74.0 & 70.0 & 80.0 & \textbf{75.0} \\
+         R-NDF$^2$ & 71.0 & 70.0 & 69.0 & 60.0 & 81.0 & 59.0 \\
+         \textbf{SA-Warp} & \textbf{85.0} & \textbf{82.0} & \textbf{81.0} & \textbf{78.0} & \textbf{88.0} & 69.0 \\
+         \bottomrule
+    \end{tabular}
+    \caption{Success rates of predicted target poses of objects in \hl{simulation}. Upright and arbitrary starting object poses. $^1$As reported in \citet{simeonov22Neurala}. $^2$As measured for the open-source version of \citet{simeonov22Neurala}.}
+\end{table}
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lccc}
+        \toprule
+         \textbf{Method} & \# Train. Objects & \# Demos. & Labels \\
+         \midrule
+         NDF & 200 & 5-10 & Yes \\
+         R-NDF & 200 & 5-10 & Yes \\
+         TAX-Pose & 200 & 5-10 & No \\
+         \textbf{SA-Warp} & \textbf{10} & \textbf{1} & \textbf{No} \\
+         \bottomrule
+    \end{tabular}
+    \caption{Required training objects, training demonstrations and additional labeled data across methods.}
+    \label{tab:training}
+\end{table}
 
 % \begin{figure*}[]
 %     \centering
@@ -413,5 +475,81 @@ Object decomposition / part segmentation \cite{tenorth13Decomposing,vahrenkamp16
 
 % no \bibliographystyle is required, since the corl style is automatically used.
 \bibliography{main,zotero}  % .bib
+
+\clearpage
+\appendix
+
+\section{Method Details}
+\label{appendix:method}
+
+\subsection{Point Cloud Sampling}
+\label{appendix:method:sampling}
+
+
+
+\subsection{Canonical Object Selection}
+\label{appendix:method:canonical}
+
+Among the $K$ example objects, we would like to find the one that is the easiest to warp to the other objects. For example, if we have ten examples of mugs, but only one mug has a square handle, we should not choose it as it might be difficult to warp it to conform to the round handles of the other nine mugs.
+
+\begin{algorithm}[H]
+
+\caption{Exhaustive Canonical Object Selection}\label{alg:canon_select_1} 
+
+\begin{flushleft}
+    \hspace*{\algorithmicindent} \textbf{Input:} Meshes of $K$ example object instances $\{ \mathrm{obj}_1, \mathrm{obj}_2, ..., \mathrm{obj}_K \}$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Canonical object $\mathrm{obj}^C$, $\mathrm{PCA}$ mapping latent vectors to warps of $\mathrm{obj}^C$. \\
+\end{flushleft}
+
+\begin{algorithmic}[1]
+
+    \State Construct a point cloud dataset for $K$ example object instances: $D_S = \{ s^{(1)}, s^{(2)}, ..., s^{(K)} \}$
+    \State Heuristic $h \leftarrow 0$.
+    \State Match objects between $\hat{z}$ and $z^g$ (Section \ref{sec:methods:search}).
+    \For {$k$th object}
+        \State $d \leftarrow \norm{\hat{z}_k - z^g_k}^2_2$
+        \If {$d < \delta$}
+            \State $h \leftarrow h + d$. \Comment{Close enough to goal.}
+        \ElsIf{$j_{\psi}(\hat{z}_k) = 1$}
+            \State $h \leftarrow h + 1$. \Comment{At least one step away from goal.}
+        \Else
+            \State $h \leftarrow h + 2$. \Comment{At least two steps away from goal.}
+        \EndIf
+    \EndFor
+    \State \Return $h$.
+
+\end{algorithmic}
+
+\end{algorithm}
+
+\begin{algorithm}[H]
+
+\caption{Approximate Canonical Object Selection}\label{alg:canon_select_2} 
+
+\begin{flushleft}
+    \hspace*{\algorithmicindent} \textbf{Input:} Meshes of $K$ example object instances $\{ \mathrm{obj}_1, \mathrm{obj}_2, ..., \mathrm{obj}_K \}$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Canonical object $\mathrm{obj}^C$, $\mathrm{PCA}$ mapping latent vectors to warps of $\mathrm{obj}^C$. \\
+\end{flushleft}
+
+\begin{algorithmic}[1]
+
+    \State Predict next state $\hat{z} = z + g_{\theta}(z, a)$.
+    \State Heuristic $h \leftarrow 0$.
+    \State Match objects between $\hat{z}$ and $z^g$ (Section \ref{sec:methods:search}).
+    \For {$k$th object}
+        \State $d \leftarrow \norm{\hat{z}_k - z^g_k}^2_2$
+        \If {$d < \delta$}
+            \State $h \leftarrow h + d$. \Comment{Close enough to goal.}
+        \ElsIf{$j_{\psi}(\hat{z}_k) = 1$}
+            \State $h \leftarrow h + 1$. \Comment{At least one step away from goal.}
+        \Else
+            \State $h \leftarrow h + 2$. \Comment{At least two steps away from goal.}
+        \EndIf
+    \EndFor
+    \State \Return $h$.
+
+\end{algorithmic}
+
+\end{algorithm}
 
 \end{document}
