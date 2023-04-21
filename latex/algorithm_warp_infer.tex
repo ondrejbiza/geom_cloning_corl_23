@@ -1,0 +1,39 @@
+\begin{algorithm}[H]
+
+\rob{The notation in this algorithm resembles python code. Can we make it more mathematical and less pythony? e.g., don't say "inverse\_transform(v)", say $v^{-1}$. capital letters for matrices, lower case for vectors, etc. As Elise says, more focus would be good here.}  
+
+\caption{Warp Inference and Mesh Reconstruction}\label{alg:warp_infer} 
+
+\begin{flushleft}
+    \hspace*{\algorithmicindent} \textbf{Input:} Observed point cloud $\mathrm{pcd}$, canonical object $\mathrm{canon}$ and latent space $\mathrm{PCA}$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Predicted latent shape $v$ and pose $T$. \\
+    \hspace*{\algorithmicindent} \textbf{Parameters:} Number of random starts $S$, number of gradient descent steps $T$, learning rate $\eta$ and object size regularization $\beta$.
+\end{flushleft}
+
+\begin{algorithmic}[1]
+
+    \State $t_{\mathrm{global}} = \mathrm{Mean}(\mathrm{pcd}, \mathrm{dim}=0)$.
+    \State $\mathrm{pcd} = \mathrm{pcd} - t_{\mathrm{global}}$. \Comment{\textcolor{blue}{Center the point cloud.}}
+    \For {$i \in \{ 1, 2, ..., S \}$}
+        \State $R_{\mathrm{init}} \leftarrow$ Random initial 3D rotation matrix.
+        \State Initialize $v = [0]*L, t_{\mathrm{local}} = [0]*3, r = [[1, 0, 0], [0, 1, 0]], s = [1]*3$.
+        \State Initialize $\mathrm{Adam}$ \cite{kingma17adam} with parameters $v, t_{\mathrm{local}}, r, s$ and learning rate $\eta$.
+        \For {$j \in \{ 1, 2, ..., T \}$}
+            \State $\delta = \mathrm{PCA.inverse\_transform}(v)\mathrm{.reshape(-1, 3)}$.
+            \State $X = \mathrm{canon.points} + \delta$. \Comment{\textcolor{blue}{Warped canonical point cloud.}}
+            \State $R = \mathrm{GramSchmidt(r)}$.
+            \State $X = (X * s) R_{\mathrm{init}}^T R^T + t_{\mathrm{local}}$. \Comment{\textcolor{blue}{Scaled, rotated and translated point cloud.}}
+            \State $\mathcal{L} = \sum_k^{|\mathrm{pcd}|} \min_l^{|X|} \norm{\mathrm{pcd}_k - X_l}_2^2$. \Comment{\textcolor{blue}{One-sided Chamfer distance.}}
+            \State $\mathcal{L} = \mathcal{L} + \beta \max_l^{|X|} \norm{X_l}_2^2$. \Comment{\textcolor{blue}{Object size regularization.}}
+            \State Take a gradient descent step to minimize $\mathcal{L}$ using $\mathrm{Adam}$.
+        \EndFor
+    \EndFor
+    \State Find parameters $v^*, t^*_{\mathrm{local}}, R_{\mathrm{init}}^*, R^*, s^*$ with the lowest final loss across $i \in \{ 1, 2, ..., S \}$.
+    \State $X = \mathrm{canon.points} +\mathrm{PCA.inverse\_transform}(v^*)\mathrm{.reshape(-1, 3)}$.
+    \State $X = (X * s^*) R_{\mathrm{init}}^{*T} R^{*T} + t^*_{\mathrm{local}} + t_{\mathrm{global}}$. \Comment{\textcolor{blue}{Complete point cloud in workspace coordinates.}}
+    \State $\mathrm{vertices} = X[:|\mathrm{canon.vertices}|]$. \Comment{\textcolor{blue}{First $|\mathrm{canon.vertices}|$ points of $X$ are vertices.}}
+    \State \Return $\mathrm{Mesh}(\mathrm{vertices} = \mathrm{vertices}, \mathrm{faces} = \mathrm{canon.faces})$. \Comment{\textcolor{blue}{Warped mesh.}}
+
+\end{algorithmic}
+
+\end{algorithm}

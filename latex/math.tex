@@ -1,0 +1,117 @@
+\documentclass{article}
+
+\usepackage[preprint]{corl_2023} % Use this for the initial submission.
+%\usepackage[final]{corl_2023} % Uncomment for the camera-ready ``final'' version.
+%\usepackage[preprint]{corl_2023} % Uncomment for pre-prints (e.g., arxiv); This is like ``final'', but will remove the CORL footnote.
+
+% ### custom packages start ###
+% math
+\usepackage{amsmath,amsfonts,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{commath}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% tables
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+
+% figures
+\usepackage{subcaption}
+\usepackage{wrapfig}
+
+% algorithms
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\newcommand{\minuseq}{\mathrel{-}=}
+
+% colors
+\usepackage{color}  % CoRL uses color insted of xcolor.
+\definecolor{purple}{rgb}{0.5,0.0,0.5}
+\definecolor{olive}{rgb}{0.5,0.5,0.0}
+\newcommand{\ob}[1]{\textcolor{purple}{[\textbf{OB:} #1]}}
+\newcommand{\evdp}[1]{\textcolor{blue}{[\textbf{EvdP:} #1]}}
+\newcommand{\lsw}[1]{\textcolor{olive}{[\textbf{lsw:} #1]}}
+\newcommand{\rob}[1]{\textcolor{green}{[\textbf{rob:} #1]}}
+\newcommand{\tk}[1]{\textcolor{magenta}{[\textbf{TK:} #1]}}
+
+% highlight
+\usepackage{soul}
+\definecolor{lightlightgrey}{rgb}{0.9,0.9,0.9}
+\sethlcolor{lightlightgrey}
+% ### custom packages end ###
+
+
+\begin{document}
+
+
+\section{Analysis of our grasp cloning algorithm}
+
+Our grasp cloning algorithm connect a gripper to an object using pairs of contact points. Assume that we have an object point cloud $PC_A$ and a gripper point cloud $PC_G$. Assume we have $N$ pairs of points $(p^{(i)}_A, p^{(i)}_G)$ that define the contacts between the object and the gripper \footnote{We find them using collision checking in pybullet.}. Each $p^{(i)}_A$ is part of $PC_A$ and each $p^{(i)}_G$ is part of $PC_G$. Technically, the pairs of points might not be in contact ($p^{(i)}_A = p^{(i)}_G$), as the point clouds do not have infinite densities. For the purpose of this analysis, we assume that we can find (or make) a point in both $PC_A$ and $PC_G$ wherever we detect a contact.
+
+Given a new object to be grasped with a point cloud $PC_B$, we receive new pairs of points $(p^{(i)}_B, p^{(i)}_G)$. The points $p^{(i)}_A$ and $p^{(i)}_B$ are related:
+\begin{align}
+    p^{(i)}_B = p^{(i)}_A + (W^{-1}(v_B - v_A))_i,
+\end{align}
+where $v_A$ and $v_B$ parameterize the shapes of the two objects and $W \in \mathbb{R}^{D{\times}N}$ is a PCA projection matrix \footnote{Technically, my PCA also has a bias.},\footnote{Assume that the object poses are already canonicalized. That is, we detected the pose of objects $A$ and $B$ and transformed their point clouds so that they are in a canonical position and orientation.}.
+
+Define a cost of an arbitrary transform $T$ of the gripper points:
+\begin{align}
+    \mathcal{L}(T) = \sum_{i=1}^N \norm{ p^{(i)}_B - T p^{(i)}_G }_2^2.
+\end{align}
+
+If $\{ p^{(i)}_B \}_1^N$ and $\{ p^{(i)}_G \}_1^N$ each form a basis of $\mathbb{R}^3$, then there exists a unique transform:
+\begin{align}
+    T^* = \argmin \mathcal{L}(T).
+\end{align}
+We can find this unique transform using Horn et al. (1988).
+
+$T^*$ tells us how to move the gripper so that we can replicate the contacts that lead to the successful grasp of object $A$ on object $B$. The question is under which conditions does the grasp with pose $T^*$ on object $B$ succeed.
+
+I suppose this analysis has two parts: 1. collisions and 2. force closures. I cannot guarantee anything about collisions and our algorithm often relies on squeezing the object during grasping to \textit{move the object} such that it conforms to the grasp. Perhaps I can give some guarantees for force closure when we apply an infinitesimal change to the shape parameter $v$, but I am not sure why that matters.
+
+\section{Analysis of our placement cloning algorithm}
+
+We observe a final pose of an object $A$ on a parent object $P$ (e.g. a mug on a mug-tree), right before we open the hand of the gripper and release the object. We have point clouds $PC_A$ and $PC_P$. We record all pairs of points $(p^{(i)}_A \in PC_A, p^{(i)}_P \in PC_P)$ such that $\norm{p^{(i)}_A - p^{(i)}_P} \leq \delta$. This step will usually return thousands of points and we find a subset of size 100 using farthest point sampling \footnote{Iteratively pick a point that is the farthest from the previously selected points.}.
+
+We re-define nearby points on $P$ as virtual points on $A$: $p^{(i)}_{V,A} \approx p^{(i)}_P$. Virtual points are anchored to $PC_A$ using k-nearest-neighbors:
+\begin{align}
+    p^{(i)}_{V,A} = \frac{1}{L} \sum_{k=1}^L P_{A,i_k},
+\end{align}
+where $i_1, i_2$, ..., $i_L$ are indices of the k-nearest-neighbors to point $p^{(i)}_P$ in $PC_A$.
+
+Same as above, we get a new object $B$ and we find $T^*$ that minimizes the following:
+\begin{align}
+    \mathcal{L}(T) = \sum_{i=1}^N \norm{ p^{(i)}_P - T p^{(i)}_{V,B} }_2^2 = \sum_{i=1}^N \norm{ p^{(i)}_P - T \frac{1}{L} \sum_{k=1}^L P_{B,i_k} }_2^2.
+\end{align}
+
+Here, we want to check if $T^*$ satisfies the task constraint. But, the constraint can be almost anything. In our three tasks (mug tree, bowl on mug and bottle in box), the constraint is that object $B$ does not fall on the ground when we apply gravity and that it \textit{does} fall when we turn the world upside down (checking that object $B$ is not stuck inside of the parent object $P$). But, we can define tasks with other constraints. E.g. cracking an egg relies on hitting the egg in the middle, lighting a fire relies on the match head being close enough regardless of its pose, etc.
+
+\section{Analysis of general trajectory cloning}
+
+When following a generic trajectory of waypoints and ignoring any collisions or task specific constraints I can take a look at the rate of change in the pose of the object compared to the rate of change in the shape parameter. I can potentially derive some constraints to ensure smoothness.
+
+\section{SE(3)-equivariant shape warping}
+
+Claim: Given a point cloud $PC$, our shape inference mechanism is $SE(3)$-invariant in the limit of the number of initial orientations.
+
+Proof:
+
+Let $f$ be our pose and shape inference algorithm that returns a warped and transformed point cloud of the canonical object. 
+
+Let $f$ be our shape warping algorithm. The final shape latent $v$ is calculated as the minimum over initial rotations:
+\begin{align}
+    G^* = \argmin_{g \sim SO(3)} D(PC, f(PC, \rho_1(g) canon)).
+\end{align}
+
+\begin{align}
+    &\argmin_{g \sim SO(3)} D(\rho_2(h) PC, f(\rho_2(h) PC, \rho_1(g) canon)) \\
+    &= \argmin_{g \sim SO(3)} D(\rho_3(h) PC + \rho_4(h), f(\rho_3(h) PC + \rho_4(h), \rho_1(g) canon)) \\
+    &= \argmin_{g \sim SO(3)} D(\rho_3(h) PC, f(\rho_3(h) PC, \rho_1(g) canon)) \\
+    &= \argmin_{g \sim SO(3)} D(PC, f(PC, \rho_3(h)^{-1} \rho_1(g) canon)) \\
+    &= \argmin_{g \sim h^{-1} SO(3)} D(PC, f(PC, \rho_1(g) canon)) \\
+    &= \argmin_{g \sim SO(3)} D(PC, f(PC, \rho_1(g) canon)) \\
+\end{align}
+
+\end{document}
