@@ -213,15 +213,15 @@ Finally, we create a new mesh by extracting the warped vertices from $\pcx{v}$ a
 \subsection{Fitting a Mesh to an Observed Point Cloud}
 \label{sec:methods:scene}
 
-We observe real-world (or simulated) point cloud $\mathrm{scene\_pcd}$ using one to three RGB-D cameras. The cameras are calibrated to the robot's hand and we fuse their outputs into a single point cloud. We detect each object of interest in $\mathrm{scene\_pcd}$ either using clustering and heuristic (Section X) or using an RGB-based open-vocabulary object detection and instance segmentation model (Section Y).
+We observe real-world (or simulated) point cloud $\mathrm{scene\_pcd}$ using one to three RGB-D cameras. The cameras are calibrated to the robot's hand and we fuse their outputs into a single point cloud. We detect each object of interest in $\mathrm{scene\_pcd}$ either using clustering and heuristics (Section X) or using pre-trained RGB-based open-vocabulary object detection and instance segmentation models (Section Y).
 
 Using our latent space from Section X, we aim to recover the pose and the complete mesh of each detected object from its point cloud $\mathrm{pcd}$. First, we use the class of the detected object to select a model from Section X -- we have one for each class. We center $\mathrm{pcd}$ and initialize the canonical point cloud with the following parameters:
 \begin{align}
     v = \begin{pmatrix} 0 & ... & 0 \end{pmatrix}, s = \begin{pmatrix} 1 & 1 & 1 \end{pmatrix}, t = \begin{pmatrix} 0 & 0 & 0 \end{pmatrix}, r = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix}.
 \end{align}
-The point clouds starts in its canonical form with the latent shape $v$ equal to zero. We set the initial scale $s$ to one, translation $t$ to zero and rotation $r$ to a unit rotation matrix. We use the Gram-Schmidt [] orthogonalization process to turn the six entries in $r$ to a proper 3D rotation matrix $R$. This method has been shown to enable stable learning of rotation matrices [].
+The point clouds starts in its canonical form with the latent shape $v$ equal to zero. We set the initial scale $s$ to one, translation $t$ to zero and rotation $r$ to a unit rotation matrix. We use the Gram-Schmidt [] orthogonalization process to turn the six entries in $r$ into a proper 3D rotation matrix $R$. This method has been shown to enable stable learning of rotation matrices [].
 
-We decode these parameters into a transformed point cloud
+We decode the shape and pose parameters into a transformed point cloud
 \begin{align}
     \mathrm{dec} = [(\pcc + W v) \odot s] R^T + t,
 \end{align}
@@ -229,9 +229,11 @@ and define a loss function
 \begin{align}
     \mathcal{L} = \underbrace{\frac{1}{|\mathrm{pcd}|} \sum_k^{|\mathrm{pcd}|} \min_l^{|\mathrm{dec}|} \norm{\mathrm{pcd}_k - \mathrm{dec}_l}_2^2}_{\text{(1)}} + \underbrace{\beta \max_l^{|\mathrm{dec}|} \norm{\mathrm{dec}_l}_2^2}_{\text{(2)}}.
 \end{align}
-The first term is a one-sided Chamfer distance between the decoded and the observed point cloud. The second term is a regularizer on the size of the decoded object. Our implementation regularizes the object to fit into the smallest possible ball. Other options are possible, such as directly regularizing $v$ and $s$, regularizing the $L_2$ norm of $\mathrm{dec}$, etc. The main reason for the regularizer is to prevent large predicted meshes in real-world experiments, which might make it impossible to find collision-free motion plans.
+The first term in the loss function is a one-sided Chamfer distance between the decoded and the observed point clouds. The second term is a regularizer on the size of the decoded object. Our implementation regularizes the object to fit into the smallest possible ball. Other options are possible, such as directly regularizing $v$ and $s$, regularizing the $L_2$ norm of $\mathrm{dec}$, etc. The main reason for the regularizer is to prevent large predicted meshes in real-world experiments, which might make it impossible to find collision-free motion plans.
 
-We optimize $v, s, t$ and $r$ using the Adam optimizer [] with learning rate $10^{-2}$ for 100 steps. We set $\beta=10^{-2}$. This optimization process is prone to getting stuck in local minima; e.g., instead of aligning the handle of the decoded mug with the observed point cloud, the optimizer might change the shape of the decoded mug to hide its handle. Hence, we restart the process with many different random initial rotations and pick the solution with the lowest loss function. Further, we randomly subsample the point clouds at each gradient descent step -- this allows us to run 12 random starting orientations at once on a consumer GPU.
+We optimize $v, s, t$ and $r$ using the Adam optimizer [] with learning rate $10^{-2}$ for 100 steps. We set $\beta=10^{-2}$. We found the optimization process is prone to getting stuck in local minima; e.g., instead of aligning the handle of the decoded mug with the observed point cloud, the optimizer might change the shape of the decoded mug to hide its handle. Hence, we restart the process with many different random initial rotations and pick the solution with the lowest loss function. Further, we randomly subsample the point clouds at each gradient descent step -- this allows us to run 12 random starting orientations at once on a consumer GPU.
+
+As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into meshes as described in Section X) and its pose represented by $t$ and $R$.
 
 % \tk{The title of this section says "Perception": I would expect some information about how we go from the camera images (which you show in the figures) to the 3D point cloud / mesh representation of individual objects}
 
