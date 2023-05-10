@@ -61,3 +61,29 @@
 % 2. Prior object pre-training methods use large libraries of hand-crafted 3D meshes of objects. This approach would not work for specialized objects, e.g. in a manufacturing setting. \evdp{Why not? Could we craft 3D meshes of specialized objects?}
 % 3. We propose a simple method based on warping pick locations and warping and matching contact points during object placement.
 % \evdp{can you make a bullet list of contributions?}
+
+
+% Methods
+
+% Pre-training
+
+% \rob{This section seems like a recapitulation of what should be in sect 3. If there is some diff between how you're doing object warping and how it was done int he CPD paper, you should focus on that here.}
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=\textwidth]{figures/latent_mugs2.pdf}
+%     \caption{Traversing the latent space of warps of a canonical mug. We show the first two out of eight principal components. \ob{TODO: Show meshes instead of point cloud to reduce clutter.}}
+%     \label{fig:latent}
+% \end{figure}
+
+% Our approach learns a latent space of meshes from around $K=10$ example objects per class. We outline the process in Algorithm \ref{alg:warp_learn} and describe it below. \rst{I think we should briefly mention where the meshes come from - online repositories, mesh reconstruction on a pointcloud, etc}
+
+% We start by sampling a small point cloud $\mathrm{PCD}_i$ for each mesh using surface sampling. We then select a canonical object with index $C$ based on the point cloud dataset. The canonical object is chosen based on the ability to be warped to the other $K-1$ point clouds using Coherent Point Drift []. \rst{I was using the chamfer distance between pointclouds before warping (the summed distance between closest points in the two pointclouds) - is this something different?} We describe point cloud warping in Section \ref{sec:background}. We save the vertices and faces of the canonical object mesh, and create a concatenated point cloud, where the first $N$ points are the vertices and the remaining points are sampled on the surface of the object. We roughly maintain a 1-to-1 ratio between these two sources of points.  However, the placement of vertices can often be biased (e.g. some mug models have 90\% of their vertices in the handle); therefore, we sample additional surface points to increase uniformity.By warping vertices, we retain the ability to reconstruct the mesh. \rst{I think this bit could use emphasis over explanations of CPD since it's novel. Add why this is important - to enable contact warping/motion planning/etc}  We call the larger canonical point cloud $\mathrm{canon}$. 
+
+% To create a latent space of warps, we warp $\mathrm{canon}$ to each point cloud in $D_W$ using Coherent Point Drift. As a result, we get a matrix of displacements $W_{C \rightarrow i}$ for each object $i$. The size of all of these matrices is $|\mathrm{canon}|{\times}3$ and they express how each point in $\mathrm{canon}$ should be translated to match the $i$th object. We flatten these matrices to create a dataset of displacements $D_W$.
+
+% Finally, we apply PCA to $D_W$ and retain the first $L$ components to define a latent space of canonical point displacements. The latent space is linear but surprisingly expressive, as each point in $\mathrm{canon}$ can move independently in a different direction. Given an $L$-dimensional vector $v$, we can create a mesh parameterized by this vector:
+% \begin{align}
+%     \mathrm{canon} +\mathrm{PCA.inverse\_transform}(v)\mathrm{.reshape(-1, 3)}.
+% \end{align}
+% The first $N$ warped points in $\mathrm{canon}$ are the vertices of the mesh and the faces remain the same across warps. 
