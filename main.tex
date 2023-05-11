@@ -210,14 +210,14 @@ For real-world applications, we found it important to have access to the surface
 
 Finally, we create a new mesh by extracting the warped vertices from $\pcx{v}$ and keeping the original faces from object $C$. This way of warping vertices can possibly break the mesh (e.g. by intersecting or inverting its faces), but we did not find it to be a problem when performing collision checking for a reasonable range of real-world objects.
 
-\subsection{Fitting a Mesh to an Observed Point Cloud}
+\subsection{Fitting a Mesh to the Observed Point Cloud}
 \label{sec:methods:scene}
 
 We observe real-world (or simulated) point cloud $\mathrm{scene\_pcd}$ using one to three RGB-D cameras. The cameras are calibrated to the robot's hand and we fuse their outputs into a single point cloud. We detect each object of interest in $\mathrm{scene\_pcd}$ either using clustering and heuristics (Section X) or using pre-trained RGB-based open-vocabulary object detection and instance segmentation models (Section Y).
 
 Using our latent space from Section X, we aim to recover the pose and the complete mesh of each detected object from its point cloud $\mathrm{pcd}$. First, we use the class of the detected object to select a model from Section X -- we have one for each class. We center $\mathrm{pcd}$ and initialize the canonical point cloud with the following parameters:
 \begin{align}
-    v = \begin{pmatrix} 0 & ... & 0 \end{pmatrix}, s = \begin{pmatrix} 1 & 1 & 1 \end{pmatrix}, t = \begin{pmatrix} 0 & 0 & 0 \end{pmatrix}, r = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix}.
+    v = \begin{pmatrix} 0 & 0 & ... & 0 \end{pmatrix}, s = \begin{pmatrix} 1 & 1 & 1 \end{pmatrix}, t = \begin{pmatrix} 0 & 0 & 0 \end{pmatrix}, r = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix}.
 \end{align}
 The point clouds starts in its canonical form with the latent shape $v$ equal to zero. We set the initial scale $s$ to one, translation $t$ to zero and rotation $r$ to a unit rotation matrix. We use the Gram-Schmidt [] orthogonalization process to turn the six entries in $r$ into a proper 3D rotation matrix $R$. This method has been shown to enable stable learning of rotation matrices [].
 
