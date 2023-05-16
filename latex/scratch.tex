@@ -1,4 +1,4 @@
-% Introduction
+% # Introduction
 
 % Our first contribution is an algorithm for the joint inference of the shape and pose of an object from its partial point cloud. We jointly optimize the shape, scale, position and orientation of a canonical object to match the observed point cloud. We show our method is $\mathrm{SE}(3)$-invariant in the limit of random restarts. We also propose a simple method for turning the inferred point cloud into meshes. Our second, and more important, contribution is the warping of robot actions. We focus on actions where two objects come into contact: e.g., grasping, relative object placement (e.g. mug on tree) and trajectory cloning with contacts (e.g. painting with a brush on a canvas). We identify the \textit{interaction points} between a pair of objects. For grasps, those are the pairs of contact points between the gripper and the target object. 
 
@@ -63,9 +63,24 @@
 % \evdp{can you make a bullet list of contributions?}
 
 
-% Methods
+% # Background
 
-% Pre-training
+%That is, the matrices are flattened and then compressed by Principal Component Analysis \cite{rodriguez18transferring,rodriguez18transferringa,thompson21shapebased} or by an auto-encoder \cite{thompson21shapebased}. As a result, a low-dimensional feature vector $v$ produces a warped object: $\pcx{v} = \pcc + f(v)$. Here, $f$, which can be a PCA or an auto-encoder, maps a $D$-dimensional vector to the space of $N{\times}3$ canonical point displacements. As we describe in Section \ref{sec:methods:scene}, we can optimize $v$ using gradient descent to recover a full mesh (as well as its pose) from a partial point cloud (Figure \ref{fig:warping}, right).
+
+%Object warping alters the mesh of an object, so that it approximately matches the shape of a different object, usually from the same class. Most object warping approaches turn object meshes into point clouds, which can be warped using techniques from non-rigid Point Set Registration \cite{zhu19review}. In particular, the Coherent Point Drift (CPD) algorithm \cite{myronenko10pointset} translates each point in the source point cloud independently, but regularizes the movement of points to be coherent in local regions using frequency-basis regularization. For example, it can warp a small mug onto a larger mug (Figure \ref{fig:warping}, left) without pulling it inside out, which would be incoherent.
+
+%Formally, given two point clouds $\mathrm{pcd}_i$ and $\mathrm{pcd}_j$, CPD predicts a matrix of translations $W_{i \rightarrow j}$, such that $\mathrm{pcd}_i + W_{i \rightarrow j} \approx \mathrm{pcd}_j$. The shape of $W_{i \rightarrow j}$ is $N{\times}3$, where $N$ is the number of points in $\mathrm{pcd}_i$. Note that each point cloud can have a different number of points; the difference between the point clouds is computed using a matching function, such as the Chamfer distance.
+
+%Prior object warping works have further learned a low dimensional latent space of warps. Given a canonical object $\mathrm{pcd}_C$ and a set of warps $\{ W_{C \rightarrow i} \}_{i=1}^K$, each matrix $W_{C \rightarrow i}$ is treated as a feature vector. That is, the matrices are flattened and then compressed by Principal Component Analysis \cite{rodriguez18transferring,rodriguez18transferringa,thompson21shapebased} or by an auto-encoder \cite{thompson21shapebased}. As a result, a low-dimensional feature vector $v$ produces a warped object: $\mathrm{pcd'} = \mathrm{pcd}_C + f(v)$. Here, $f$ maps a $D$-dimensional vector to the space of $N{\times}3$ canonical point displacements. As we describe in the Methods section \tk{Link to section}, we can optimize $v$ using gradient descent to recover a full mesh (as well as its pose) from a partial point cloud (Figure \ref{fig:warping}, right).
+
+%\section{Problem Statement: $\mathrm{SE(3)}$ Object Re-arrangement}
+%\rob{Sorry to be obstinate, but I don't think your method is specific to pick-place. It seems like the key objective here is to warp the relative pose between two objects in order to accommodate in-class shape variation. Those two objects could be the gripper and object (grasping) or the relative pose between two objects (placing). This vision of the problem should inform the title of the paper. I would update this whole section and update fig 3 to reflect this.} \ob{Yes, I decided to also include an experiment with trajectory cloning, so I'll change this section.}
+%We formulate the object re-arrangement problem as a problem of predicting a pair of 3D homogeneous transforms $(T_\mathrm{pick}, T_\mathrm{rel})$ given an initial segmented point cloud of the scene. The transform $T_\mathrm{pick}$ defines the pose of the robot's gripper that results in a successful pick. Moreover, the way the robot is holding the object should be compatible with the task it is to accomplish. E.g. a mug should be held by the rim so that it can be placed on a mug tree by its handle. The transform $T_\mathrm{rel}$ represents the relative transform between the initial pose of the manipulated object and its target pose. For the mug-tree problem \evdp{mug-tree problem has not been explicitly introduced yet}, we have, informally, $T_{\mathrm{mug-on-tree}} = T_\mathrm{rel} T_{\mathrm{mug-on-ground}}$. Our problem statement is alike \cite{simeonov22neural,simeonov22se}, whereas \cite{pan22taxpose} consider only the prediction of $T_\mathrm{rel}$. Our work as well as \cite{simeonov22neural,simeonov22se,pan22taxpose} solve tasks using open-loop policies; we discuss an extension of our method to closed-loop manipulation in the Conclusion.
+
+
+% # Methods
+
+% ## Pre-training
 
 % \rob{This section seems like a recapitulation of what should be in sect 3. If there is some diff between how you're doing object warping and how it was done int he CPD paper, you should focus on that here.}
 
@@ -87,3 +102,19 @@
 %     \mathrm{canon} +\mathrm{PCA.inverse\_transform}(v)\mathrm{.reshape(-1, 3)}.
 % \end{align}
 % The first $N$ warped points in $\mathrm{canon}$ are the vertices of the mesh and the faces remain the same across warps. 
+
+% ## Perception
+
+% \tk{The title of this section says "Perception": I would expect some information about how we go from the camera images (which you show in the figures) to the 3D point cloud / mesh representation of individual objects}
+
+% Given an observed, possibly partial, point cloud $\mathrm{pcd}$, our goal is to predict the latent shape $v$ and pose $T$ of the object. We describe this in Algorithm \ref{alg:warp_infer}.
+
+% \rob{Now, we're getting into material that is novel to this paper. If the objective here can be expressed mathematically (e.g. in terms of min and max), that would be nice. Talk about *what* we're doing mathematically. then talk about how we're doing it -- SGD and random restarts.}
+
+% To jointly estimate the pose and shape, we employ a gradient-based optimization approach with multiple random starts. For each random start, we sample a random $3D$ rotation and use fixed initialization for latent shape $v$, translation $t_{\mathrm{local}}$ and scale $s$. We reconstruct a point cloud using $v$, scale it using $s$, and transform it using the rotation and translation. We then calculate the difference between the reconstructed and predicted point cloud and take a gradient descent step with respect to shape, scale and pose using the Adam optimizer []. We also add a regularizer on the size of the reconstructed object controlled by a hyper-parameter $\beta$.
+
+% We use multiple random restarts with different initial rotations because the joint optimization of shape and pose is prone to local minima. For example, if the optimizer cannot align the handle of the mug with the observed point cloud due to an unfavorable random start, it might instead choose to make the handle as small as possible. This behavior is fixed by taking the parameters of the object with the best fit across many random initial rotations.
+
+% \rob{Agree w/ everything Elise says below. Maybe say explicitly what GS does and how BP works there. Cite others who use GS this way.}
+
+% Another problem is the gradient descent with respect to 3D rotations. While previous approaches have directly optimized Euler angles [], which can be tricky \evdp{better to explicitly explain issues e.g. singularities}, we choose a more elegant \evdp{should not call our own approach elegant} approach of directly learning the 3D rotation matrix []. We parameterize the rotation matrix as a $2{\times}3$ matrix $r$ and perform Gram-Schmidt orthogonalization [], which creates a 3D rotation matrix. This process can be backpropagated through to update $r$. \evdp{does having to backpropagate through GS make training expensive? It might be good to add some information about training wall clock time}
