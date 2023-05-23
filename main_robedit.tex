@@ -61,12 +61,7 @@
 % \title{Simple $\mathrm{SE}(3)$ Object Re-arrangement \\via Shape and Action Warping}
 
 % didn't like the title above, but not sure how I feel about this one either...
-
-% \title{One-Shot Imitation Learning via Shape Warping}
-
-\title{Imitation Learning via Simple Linear Shape Warping}
-
-% \title{Keypoint Matching via Linear Shape Warping}
+\title{One-Shot Imitation Learning via Shape Warping}
 
 % The \author macro works with any number of authors. There are two
 % commands used to separate the names and addresses of multiple
@@ -104,51 +99,26 @@ TODO
 
 %===============================================================================
 
-% \begin{figure}[h]
-%     \centering
-%     \includegraphics[width=\textwidth]{figures/figure_9.pdf}
-%     \caption{Examples of real-world generalization capabilities of SA-Warp. \ob{TODO: Reduce visual clutter, maybe masking or blurring.}}
-%     \label{fig:intro}
-% \end{figure}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/figure_9.pdf}
+    \caption{Examples of real-world generalization capabilities of SA-Warp. \ob{TODO: Reduce visual clutter, maybe masking or blurring.}}
+    \label{fig:intro}
+\end{figure}
 
 \section{Introduction}
+% OB: I moved the prior version and comments to 'latex/scratch.tex' in this overleaf project.
 
+Robot learning of manipulation policies in the open world -- in situations, and to objects, the robot has not previously encountered -- is a grand challenge in robotics. An important aspect of this problem is our representation of the 3D world. Our paper focuses on a factored representation of the world, where we first find all objects of interest and then represent the 3D shape of each object independently. Our representation should generalize to unfamiliar objects in unfamiliar environments. For example, a robot should be able to enter a new kitchen and place a mug of a new shape on a hook (Figure \ref{fig:intro}). Additionally, we wish the robot to generalize to objects placed in novel positions and orientations. E.g. the robot should be able to pick a mug laying sideways on a floor even if it has previously only seen mugs standing on a countertop. We call this property $\mathrm{SE}(3)$-equivariance.
 
-\begin{wrapfigure}[17]{r}{0.45\textwidth}
-\vspace{-0.5cm}
-  \begin{center}
-    \includegraphics[width=0.45\textwidth]{figures/mugs1.png} \\
-    \includegraphics[width=0.45\textwidth]{figures/mugs2.png}
-    \end{center}
-\vspace{-0.2cm}
-\caption{The Mug Tree task.}
-\label{fig:mugontree}
-\end{wrapfigure}
+Classical robotics approaches represent objects using explicit 3D geometries. \citet{miller03automatic,tenorth13decomposing} decompose complex objects into primitive shapes to plan for grasps and \citet{klank09realtime,beetz11robotic} rely on having CAD models of all objects in the world. The generalization ability of these approaches is limited, as these hand-crafted 3D representations cannot be accurately fit to any new object the robot encounters. To address this limitation, recent approaches use implicitly learned 3D descriptors. \citet{mescheder19occupancy,park19deepsdf} represent the 3D surface of an object as a decision boundary of a binary classifier neural network. Each 3D point nearby the surface of the object can then be described using the activations of the neural network \cite{simeonov22neural}. \citet{pan22taxpose} use neural point cloud embeddings \cite{qi17pointneta} and cross-attention \cite{vaswani17attention} to learn point cloud representations that are comparable between object instances.
 
+Implicit 3D descriptors have led to impressive results in few-shot 3D manipulation. Neural Descriptor Fields (NDFs) \cite{simeonov22neural,simeonov22se} and TAX-Pose \cite{pan22taxpose} learn object re-arrangement policies, e.g. hanging a mug on a hook, from 5 - 10 demonstrations. NDFs use 3D descriptors to match task-relevant object parts between different instances of objects. For example, they align the handles of differently shaped mugs in order to successfully hang them. Alternatively, Tax-Pose computes the cross-attention between the child (mug) and the parent (hook) objects in order to find which parts of the two objects should be nearby each other in the target configuration (mug on tree). The direct comparison between the child and the parent objects can lead to higher accuracy than in NDFs. But, both NDFs and Tax-Pose have two important limitations: (1) a large collection of 3D meshes is required for pre-training (200 objects per category from ShapeNet \cite{chang15shapenet}) and (2) without explicit 3D geometries, it is difficult to perform collision checking and motion planning on a physical robot.
 
-In one shot imitation learning, we are given a single demonstration of a desired manipulation behavior and we must find a policy that can reproduce the behavior in different situations. The classic example of this is the Mug Tree task where the robot must grasp a mug and hang it on a tree by its handle. Given a single demonstration of grasping a mug and hanging it on a tree (top row of Figure~\ref{fig:mugontree}), we want to obtain a policy that can successfully perform the same task for differently shaped objects placed in different poses, e.g. differently shaped mugs and trees (bottom row of Figure~\ref{fig:mugontree}). There are two key challenges here. First, the demonstration must generalize to novel object instances, e.g. different mugs. Second, the policy must reason in $SE(3)$ rather than in $SE(2)$ where the problem is significantly easier.
+Our paper focuses on an alternative and highly sample-efficient explicit 3D geometry representation method based on \textit{shape warping} \citep{jakel12learning,brandi14generalizing,lee15learning,schulman16learning,rodriguez18transferring,rodriguez18transferringa,thompson21shapebased}. The core idea is to pick a canonical example of an object class, and warp its point cloud (or mesh) to conform to the observations of novel object instances \cite{myronenko10pointset,hillenbrand12transferring,benamor12generalization}. The immediate benefit is that we do not have to represent the shape of an object, but only the \textit{displacement} of points as they are warped between different object instances (belonging to the same object class). We base our method on prior work by \citet{rodriguez18transferring,thompson21shapebased}, who propose to use gradient-descent-based inference to enable shape warping to partial point clouds.
+% \tk{We base our method on ... [or mention this connection later in the method section, might not be needed here]} 
 
-% A variety of effective approaches have been proposed for imitation learning in the plane, e.g.~\cite{}, but the problem in $SE(3)$ is much harder. 
-
-To be successful in $SE(3)$, it is generally necessary to bias the model significantly toward the object manipulation domains in question. One popular method of accomplishing this is to use keypoints~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. The idea here is to train a neural network model to assign descriptors to points on a novel object instance as a function of their semantic location on the object, e.g. points on the handles from different mugs would be assigned similar descriptors. Once these descriptors have been learned, they can be used to represent relative object poses for object categories in terms of the relative locations of their keypoints. This enables us to translate a demonstration on one of set of in-category objects to a different set of in-category objects. For example, the system would be able to translate the demonstration in the top row of Figure~\ref{fig:mugontree} to produce the behavior in the bottom row of Figure~\ref{fig:mugontree}.
-
-Within the context of keypoint methods, a key challenge becomes how to learn semantically meaningful keypoint descriptors. This generally happens during a pretraining step where category-level object models are trained using a large number (generally hundreds) of in-category object instances for each category, e.g. hundreds of different instances of mugs. Different methods use different descriptor models. Early work used hand coded feature labels~\cite{manuelli2019kpam}. More recent methods learn descriptors as the byproduct of an implicit object model~\cite{simeonov2022neural}. Other methods learn a point embedding using a constrastive loss on a DGCNN~\cite{wang2019dynamic} model~\cite{pan2022tax}. The common thread here is that all of these methods involve a heavyweight category level object model that is trained on hundreds of objects to produce keypoint descriptors.
-
-This paper proposes a different approach to the problem based on Coherent Point Drift (CPD)~\cite{myronenko2010point}, a point set registration algorithm. Using CPD, we train a shape completion model to register a novel in-category object instance to a canonical object model in which the a task has been defined via one-shot demonstration. The canonical task can then be projected into scenes with novel in-category objects by registering the new objects to the canonical models. Our method has several advantages over the previous work mentioned above~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. First, it performs better, both in simulation and on robotic hardware, in terms of its ability to successfully perform a novel instance of a demonstrated task. Second, it requires an order of magnitude fewer object instances to train each new object category -- tens of object instances rather than hundreds. Third, our method is completely devoid of neural networks -- the approach is based on Gaussian Mixture models instead. This makes the approach more computationally efficient and it means that it is much easier to reason about issues like uncertainty and safety of the model. 
-
-
-% \subsection{Old Intro}
-
-% Robot learning of manipulation policies in the open world -- in situations, and to objects, the robot has not previously encountered -- is a grand challenge in robotics. An important aspect of this problem is our representation of the 3D world. Our paper focuses on a factored representation of the world, where we first find all objects of interest and then represent the 3D shape of each object independently. Our representation should generalize to unfamiliar objects in unfamiliar environments. For example, a robot should be able to enter a new kitchen and place a mug of a new shape on a hook (Figure \ref{fig:intro}). Additionally, we wish the robot to generalize to objects placed in novel positions and orientations. E.g. the robot should be able to pick a mug laying sideways on a floor even if it has previously only seen mugs standing on a countertop. We call this property $\mathrm{SE}(3)$-equivariance.
-
-% Classical robotics approaches represent objects using explicit 3D geometries. \citet{miller03automatic,tenorth13decomposing} decompose complex objects into primitive shapes to plan for grasps and \citet{klank09realtime,beetz11robotic} rely on having CAD models of all objects in the world. The generalization ability of these approaches is limited, as these hand-crafted 3D representations cannot be accurately fit to any new object the robot encounters. To address this limitation, recent approaches use implicitly learned 3D descriptors. \citet{mescheder19occupancy,park19deepsdf} represent the 3D surface of an object as a decision boundary of a binary classifier neural network. Each 3D point nearby the surface of the object can then be described using the activations of the neural network \cite{simeonov22neural}. \citet{pan22taxpose} use neural point cloud embeddings \cite{qi17pointneta} and cross-attention \cite{vaswani17attention} to learn point cloud representations that are comparable between object instances.
-
-% Implicit 3D descriptors have led to impressive results in few-shot 3D manipulation. Neural Descriptor Fields (NDFs) \cite{simeonov22neural,simeonov22se} and TAX-Pose \cite{pan22taxpose} learn object re-arrangement policies, e.g. hanging a mug on a hook, from 5 - 10 demonstrations. NDFs use 3D descriptors to match task-relevant object parts between different instances of objects. For example, they align the handles of differently shaped mugs in order to successfully hang them. Alternatively, Tax-Pose computes the cross-attention between the child (mug) and the parent (hook) objects in order to find which parts of the two objects should be nearby each other in the target configuration (mug on tree). The direct comparison between the child and the parent objects can lead to higher accuracy than in NDFs. But, both NDFs and Tax-Pose have two important limitations: (1) a large collection of 3D meshes is required for pre-training (200 objects per category from ShapeNet \cite{chang15shapenet}) and (2) without explicit 3D geometries, it is difficult to perform collision checking and motion planning on a physical robot.
-
-% Our paper focuses on an alternative and highly sample-efficient explicit 3D geometry representation method based on \textit{shape warping} \citep{jakel12learning,brandi14generalizing,lee15learning,schulman16learning,rodriguez18transferring,rodriguez18transferringa,thompson21shapebased}. The core idea is to pick a canonical example of an object class, and warp its point cloud (or mesh) to conform to the observations of novel object instances \cite{myronenko10pointset,hillenbrand12transferring,benamor12generalization}. The immediate benefit is that we do not have to represent the shape of an object, but only the \textit{displacement} of points as they are warped between different object instances (belonging to the same object class). We base our method on prior work by \citet{rodriguez18transferring,thompson21shapebased}, who propose to use gradient-descent-based inference to enable shape warping to partial point clouds.
-% % \tk{We base our method on ... [or mention this connection later in the method section, might not be needed here]} 
-
-% We propose \textbf{Shape and Action Warping (SA-Warp)}, a general method for one-shot learning of robotic manipulation policies. First, we propose a new algorithm for the joint inference of object shape, scale, translation and orientation based on its partial point cloud. The algorithm is based on canonical object warping with a low-dimensional latent space of shapes \cite{rodriguez18transferring,thompson21shapebased} and returns a warped 3D mesh. Second, we propose a method for the warping of robot actions. We focus on actions where two objects come into contact: e.g., grasping, relative object placement (e.g. mug on tree) and trajectory cloning with contacts (e.g. painting with a brush on a canvas). Our method finds the \textit{interaction points} between pairs of objects, anchors them to their canonical counterparts, and warps them to conform to objects of novel shapes. We developed SA-Warp specifically for on-robot behavior cloning, and we extensively test it in real-world robot experiments.
+We propose \textbf{Shape and Action Warping (SA-Warp)}, a general method for one-shot learning of robotic manipulation policies. First, we propose a new algorithm for the joint inference of object shape, scale, translation and orientation based on its partial point cloud. The algorithm is based on canonical object warping with a low-dimensional latent space of shapes \cite{rodriguez18transferring,thompson21shapebased} and returns a warped 3D mesh. Second, we propose a method for the warping of robot actions. We focus on actions where two objects come into contact: e.g., grasping, relative object placement (e.g. mug on tree) and trajectory cloning with contacts (e.g. painting with a brush on a canvas). Our method finds the \textit{interaction points} between pairs of objects, anchors them to their canonical counterparts, and warps them to conform to objects of novel shapes. We developed SA-Warp specifically for on-robot behavior cloning, and we extensively test it in real-world robot experiments.
 
 \section{Related Work}
 
@@ -219,7 +189,7 @@ In this section, we propose \textbf{SA-Warp}, a method for behavior cloning of o
 \subsection{Latent Space of Meshes}
 \label{sec:methods:mesh}
 
-We pre-train SA-Warp with a small number of example objects (ten objects from ShapeNet [] in our experiments) for each object class. We assume to have access to object meshes (same as []) and we sample a point cloud per object using surface sampling. For each class, we select a canonical example $C$ that appears to be the most representative (we describe two possible heuristics in Appendix X). Then, we apply the method of [] described in Section \ref{sec:background} to learn a latent space of object warps. As a result, we can parameterize object shape by a low-dimensional vector $v$:
+We pre-train SA-Warp with a small number of example objects (ten objects from ShapeNet [] in our experiments) for each object class. We assume access to object meshes (same as []) and we sample a point cloud per object using surface sampling. For each class, we select a canonical example $C$ that appears to be the most representative (we describe two possible heuristics in Appendix X). Then, we apply the method of [] described in Section \ref{sec:background} to learn a latent space of object warps. As a result, we can parameterize object shape by a low-dimensional vector $v$:
 \begin{align}
     \pcx{v} = \pcc + W v. \tag{3}
 \end{align}

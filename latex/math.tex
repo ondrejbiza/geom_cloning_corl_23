@@ -48,9 +48,9 @@
 
 \section{Analysis of our grasp cloning algorithm}
 
-Our grasp cloning algorithm connect a gripper to an object using pairs of contact points. Assume that we have an object point cloud $PC_A$ and a gripper point cloud $PC_G$. Assume we have $N$ pairs of points $(p^{(i)}_A, p^{(i)}_G)$ that define the contacts between the object and the gripper \footnote{We find them using collision checking in pybullet.}. Each $p^{(i)}_A$ is part of $PC_A$ and each $p^{(i)}_G$ is part of $PC_G$. Technically, the pairs of points might not be in contact ($p^{(i)}_A = p^{(i)}_G$), as the point clouds do not have infinite densities. For the purpose of this analysis, we assume that we can find (or make) a point in both $PC_A$ and $PC_G$ wherever we detect a contact.
+Our grasp cloning algorithm connect a gripper to an object using pairs of contact points. Assume that we have an object point cloud $PC_A$ and a gripper point cloud $PC_G$. Assume we have $N$ pairs of points $(p^{(i)}_A, p^{(i)}_G)_{i=1}^N$ that define the contacts between the object and the gripper \footnote{We find them using collision checking in pybullet.}. Each $p^{(i)}_A$ is part of $PC_A$ and each $p^{(i)}_G$ is part of $PC_G$. Technically, the pairs of points might not be in contact ($p^{(i)}_A = p^{(i)}_G$), as the point clouds do not have infinite densities. For the purpose of this analysis, we assume that we can find (or make) a point in both $PC_A$ and $PC_G$ wherever we detect a contact.
 
-Given a new object to be grasped with a point cloud $PC_B$, we receive new pairs of points $(p^{(i)}_B, p^{(i)}_G)$. The points $p^{(i)}_A$ and $p^{(i)}_B$ are related:
+Given a new object to be grasped with point cloud $PC_B$, we receive new pairs of points $(p^{(i)}_B, p^{(i)}_G)_{i=1}^N$. The points $p^{(i)}_A$ and $p^{(i)}_B$ are related:
 \begin{align}
     p^{(i)}_B = p^{(i)}_A + (W^{-1}(v_B - v_A))_i,
 \end{align}
