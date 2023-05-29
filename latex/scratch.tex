@@ -118,3 +118,55 @@
 % \rob{Agree w/ everything Elise says below. Maybe say explicitly what GS does and how BP works there. Cite others who use GS this way.}
 
 % Another problem is the gradient descent with respect to 3D rotations. While previous approaches have directly optimized Euler angles [], which can be tricky \evdp{better to explicitly explain issues e.g. singularities}, we choose a more elegant \evdp{should not call our own approach elegant} approach of directly learning the 3D rotation matrix []. We parameterize the rotation matrix as a $2{\times}3$ matrix $r$ and perform Gram-Schmidt orthogonalization [], which creates a 3D rotation matrix. This process can be backpropagated through to update $r$. \evdp{does having to backpropagate through GS make training expensive? It might be good to add some information about training wall clock time}
+
+% \begin{table}[h]
+%     \centering
+%     \begin{tabular}{lccc}
+%         \toprule
+%          \textbf{Method} & \# Train. Objects & \# Demos. & Labels \\
+%          \midrule
+%          NDF & 200 & 5-10 & Yes \\
+%          R-NDF & 200 & 5-10 & Yes \\
+%          TAX-Pose & 200 & 5-10 & No \\
+%          \textbf{SA-Warp} & \textbf{10} & \textbf{1} & \textbf{No} \\
+%          \bottomrule
+%     \end{tabular}
+%     \caption{Required training objects, training demonstrations and additional labeled data across methods.}
+%     \label{tab:training}
+% \end{table}
+
+% \begin{figure*}[]
+%     \centering
+%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/virtual/1.png}
+%         \caption{}
+%     \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/virtual/2.png}
+%         \caption{}
+%     \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/virtual/3.png}
+%         \caption{}
+%     \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/virtual/4.png}
+%         \caption{}
+%     \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/virtual/5.png}
+%         \caption{}
+%     \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/virtual/6.png}
+%         \caption{}
+%     \end{subfigure}
+%     \caption{Sketch: (a): a demonstration of the mug tree task, (b) a virtual point (green) in the middle of the mug's handle, (c) 10 (?) nearest neighbors (blue\ob{almost invisible, I know}), (d-f) warping the virtual point together with the mug.}
+%     \label{fig:virtual_points}
+% \end{figure*}

@@ -1,8 +1,8 @@
 \documentclass{article}
 
-\usepackage{corl_2023} % Use this for the initial submission.
+%\usepackage{corl_2023} % Use this for the initial submission.
 %\usepackage[final]{corl_2023} % Uncomment for the camera-ready ``final'' version.
-%\usepackage[preprint]{corl_2023} % Uncomment for pre-prints (e.g., arxiv); This is like ``final'', but will remove the CORL footnote.
+\usepackage[preprint]{corl_2023} % Uncomment for pre-prints (e.g., arxiv); This is like ``final'', but will remove the CORL footnote.
 
 % ### custom packages start ###
 % math
@@ -82,11 +82,11 @@
 % 	For the initial submission the authors will be anonymized.
 
 \author{
-  Jane E.~Doe\\
-  Department of Electrical Engineering and Computer Sciences\\
-  University of California Berkeley 
-  United States\\
-  \texttt{janedoe@berkeley.edu} \\
+  (Not final order) Ondrej Biza$^1$, Skye Thompson$^2$, Kishore Reddy Pagidi$^1$, Abhinav Kumar$^1$, \\
+  \textbf{Elise van der Pol$^3$, Robin Walters$^1$, Thomas Kipf$^4$,} \\
+  \textbf{Jan-Willem van de Meent$^{1,5}$, Lawson Wong$^1$, Robert Platt$^1$} \\
+  $^1$ Northeastern University, $^2$ Brown University, $^3$ Microsoft Research, \\$^4$ Google Research, $^5$ University of Amsterdam \\
+  \texttt{biza.o@northeastern.edu} \\
 }
 
 
@@ -96,11 +96,11 @@
 %===============================================================================
 
 \begin{abstract}
-TODO
+Imitation learning of robot policies from few demonstrations in crucial in open-ended applications. We propose a new method, Interaction Warping, for learning 3D robotic manipulation policies from a single demonstration. Our method infers the 3D mesh of each object in the environment using shape warping, a technique for aligning point clouds across object instances. We then use the warped meshes to transfer interaction points from a single demonstration to a scene with novel objects. The notion of interaction points allows us to transfer robot grasps and relational object placements. We show successful one-shot imitation learning on three simulated and real-world object re-arrangement tasks. We also demonstrate the ablity of our method to predict object meshes and robot grasps in the wild.
 \end{abstract}
 
 % Two or three meaningful keywords should be added here
-\keywords{TODO} 
+\keywords{3D manipulation, imitation learning, shape warping.} 
 
 %===============================================================================
 
@@ -158,7 +158,7 @@ We build on a body of robotics work aimed at learning generalizable manipulation
 
 A related idea is the learning of descriptors attached to arbitrary 2D or 3D key-points. \citet{florence18dense} use self-supervised learning to learn dense descriptors from images. These descriptors can be used to compute similarities of arbitrary key-points between different instances and poses of objects. \citet{chen22neural} compute descriptors of an arbitrary 3D coordinate, called Neural Descriptor Fields, using an implicit shape representation neural network conditioned on a point cloud \cite{mescheder19occupancy}. By attaching a pose of an object to a set of descriptors, they can match e.g.~the pose of a handle of a mug across different mug instances and poses. The method is used re-arrange objects with a variable initial pose and a fixed goal. \citet{simeonov22se} represent pairs of objects using Neural Descriptor Fields to enable generalization across goal poses. \citet{chun23local} further leverage the locality bias of Neural Descriptor Fields to generalize demonstrations across object classes.
 
-Some works rely on CAD model matching to reproduce grasps or manipulation trajectories  \cite{klank09realtime,brook11collaborative,beetz11robotic,jakel12learning}. ... also shape primitives \cite{miller03automatic} ... But, it can be difficult to generalize these methods to novel instances of objects. Recently, \citet{wen22you} tackled category-level manipulation by re-mapping key poses of objects across instances. \citet{pan22taxpose} make predictions about the desired pose of a child object related to a parent object (e.g. hanging a mug on a mug-tree) using cross-attention [] between the pair of point clouds.
+Some works rely on CAD model matching to reproduce grasps or manipulation trajectories  \cite{klank09realtime,brook11collaborative,beetz11robotic,jakel12learning}. ... also shape primitives \cite{miller03automatic} ... But, it can be difficult to generalize these methods to novel instances of objects. Recently, \citet{wen22you} tackled category-level manipulation by re-mapping key poses of objects across instances. \citet{pan22taxpose} make predictions about the desired pose of a child object related to a parent object (e.g. hanging a mug on a mug-tree) using cross-attention \cite{vaswani17attention} between the pair of point clouds.
 
 
 \subsection{Shape Warping and Manipulation}
@@ -187,7 +187,7 @@ Shape warping aims to find the correspondence between the shape of two objects b
 
 Denote a pair of point clouds $\pci$ and $\pcj$. We want to compute a matrix of displacements $\wij$ that minimizes some distance function between $\pci + \wij$ and $\pcj$, such as the one-sided Chamfer distance:
 \begin{align}
-    d\left( \pci + \wij, \pcj \right) = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{ \pci_l - \pcj_k }_2.
+    d\left( \pci + \wij, \pcj \right) = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{ \pci_l + W_{i \rightarrow j, l} - \pcj_k }_2.
 \end{align}
 Note that the two point clouds can have a different number of points. In general, $\wij$ can re-arrange $\pci$ in an arbitrary way, leading to a mapping that is not useful. The Coherent Point Drift (CPD) algorithm regularizes $\wij$ so that nearby points in $\pci$ are displaced similarly. CPD formulates the problem as a fitting of a Gaussian Mixture Model (GMM), where $\pci$ is a set of components and $\pcj$ is the data. It uses expectation maximization to optimize the objective function
 \begin{align}
@@ -205,39 +205,46 @@ Given a new point cloud $\pci$, we infer its shape by solving the following opti
 \end{align}
 Finally, the term $Wv$ can be replaced by a more expressive model, e.g. an auto-encoder \cite{thompson21shapebased} or possibly a diffusion model \cite{nichol22pointe}. We use PCA for simplicity.
 
-\section{Method: SA-Warp}
+\section{Interaction Warping (IW)}
 
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{figures/method_figure2.pdf}
-    \caption{Main method figure. I'll fill it in with real-world images later. \rob{I'm thinking instead of a fig that focuses on warping of relative pose between pair of objects. Maybe visualize mug-on-tree (or bottle in box) for diff warped configs, similar to what you do in fig 2 for objects.}}
-    \label{fig:method}
-\end{figure}
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=\textwidth]{figures/method_figure2.pdf}
+%     \caption{Main method figure. I'll fill it in with real-world images later. \rob{I'm thinking instead of a fig that focuses on warping of relative pose between pair of objects. Maybe visualize mug-on-tree (or bottle in box) for diff warped configs, similar to what you do in fig 2 for objects.}}
+%     \label{fig:method}
+% \end{figure}
 
-In this section, we propose \textbf{SA-Warp}, a method for behavior cloning of object re-arrangement policies from a single demonstration. \rst{not just SE(3), but also robust to shape. I think it's worth adressing the sample efficiency over number of objects) not just demos, since that's a primary benefit over NDFs and similar} Our method has three main components that make it work on a real-world robot: (1) hybrid mesh and point cloud warping to enable the detection of contact points and collision avoidance during motion planning, (2) joint estimation of object shape and pose in 3D using gradient descent and (3) cloning of contact points and nearby points to enable transfer of pick and place actions across object instances.
+In this section, we propose \textbf{Interaction Warping (IW)}, a method for imitation learning using shape warping. IW is robust to shape variation between object instances and sample-efficient in terms of both the number of example objects and the number of demonstrations of  a task. Our method has three main components that make it work on a real-world robot: (1) hybrid mesh and point cloud warping to enable the detection of contact points and collision avoidance during motion planning, (2) joint estimation of object shape and pose in 3D using gradient descent and (3) warping of interactions between objects (including the robot gripper) to enable the transfer of 3D robot actions across object instances.
 
 \subsection{Latent Space of Meshes}
 \label{sec:methods:mesh}
 
-We pre-train SA-Warp with a small number of example objects (ten objects from ShapeNet [] in our experiments) for each object class. We assume to have access to object meshes (same as []) and we sample a point cloud per object using surface sampling. For each class, we select a canonical example $C$ that appears to be the most representative (we describe two possible heuristics in Appendix X). Then, we apply the method of [] described in Section \ref{sec:background} to learn a latent space of object warps. As a result, we can parameterize object shape by a low-dimensional vector $v$:
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{figures/latent_mugs2.pdf}
+    \caption{The first two principal components of a latent space of mug warps.}
+    \label{fig:latent}
+\end{figure}
+
+We pre-train IW with a small number of example objects (ten objects from ShapeNet \cite{chang15shapenet} in our experiments) for each object class. We assume to have access to object meshes and we sample a point cloud per object using surface sampling. For each class, we select a canonical example $C$ that appears to be the most representative (we describe two possible heuristics in Appendix \ref{appendix:method:canonical}). Then, we apply the method of \cite{rodriguez18transferring} described in Section \ref{sec:background} to learn a latent space of object warps (Figure \ref{fig:latent}). As a result, we can parameterize object shape by a low-dimensional vector $v$:
 \begin{align}
     \pcx{v} = \pcc + W v. \tag{3}
 \end{align}
 
-For real-world applications, we found it important to have access to the surface of the object shape parameterized by $v$ in addition to its point cloud. If the point cloud of $\pcx{v}$ is dense enough, it is possible to use surface completion methods []. But, we found a simpler approach to work well: we construct the canonical point cloud $\pcc$ as a concatenation of the actual vertices of object $C$ and points sampled on its surface. By having actual vertices in $\pcc$, we ensure that they can be warped to create a new mesh. We add the surface samples to make the point cloud more uniform -- meshes modeled by people tend to have highly non-uniform distributions of vertices.
+For real-world applications, we found it important to have access to the surface of the object shape parameterized by $v$ in addition to its point cloud. If the point cloud of $\pcx{v}$ is dense enough, it is possible to use surface completion methods. But, we found a simpler approach to work well: we construct the canonical point cloud $\pcc$ as a concatenation of the actual vertices of object $C$ and points sampled on its surface. By having actual vertices in $\pcc$, we ensure that they can be warped to create a new mesh. We add the surface samples to make the point cloud more uniform -- meshes modeled by people tend to have highly non-uniform distributions of vertices.
 
 Finally, we create a new mesh by extracting the warped vertices from $\pcx{v}$ and keeping the original faces (represented as triplets of vertex indices) from object $C$. This way of warping vertices can possibly break the mesh (e.g. by intersecting or inverting its faces), but we did not find it to be a problem when performing collision checking for a reasonable range of real-world objects.
 
 \subsection{Fitting a Mesh to the Observed Point Cloud}
 \label{sec:methods:scene}
 
-We observe real-world (or simulated) point cloud $\mathrm{scene\_pcd}$ using one to three RGB-D cameras. The cameras are calibrated to the robot's hand and we fuse their outputs into a single point cloud. We detect each object of interest in $\mathrm{scene\_pcd}$ either using clustering and heuristics (Section X) or using pre-trained RGB-based open-vocabulary object detection and instance segmentation models (Section Y).
+We observe real-world (or simulated) point cloud $\mathrm{scene\_pcd}$ using one to three RGB-D cameras. The cameras are calibrated to the robot's hand and we fuse their outputs into a single point cloud. We detect each object of interest in $\mathrm{scene\_pcd}$ either using clustering and heuristics (Section \ref{sec:exp:rearrangement}) or using pre-trained RGB-based open-vocabulary object detection and instance segmentation models (Section \ref{sec:exp:wild}).
 
-Using our latent space from Section X, we aim to recover the pose and the complete mesh of each detected object from its point cloud $\mathrm{pcd}$. First, we use the class of the detected object to select a model from Section X -- we have one for each class. We center $\mathrm{pcd}$ and initialize the canonical point cloud with the following parameters:
+Using our latent space from Section \ref{sec:methods:mesh}, we aim to recover the pose and the complete mesh of each detected object from its point cloud $\mathrm{pcd}$. First, we use the class of the detected object to select a model from Section \ref{sec:methods:mesh} -- we have one for each class. We center $\mathrm{pcd}$ and initialize the canonical point cloud with the following parameters:
 \begin{align}
     v = \begin{pmatrix} 0 & 0 & ... & 0 \end{pmatrix}, s = \begin{pmatrix} 1 & 1 & 1 \end{pmatrix}, t = \begin{pmatrix} 0 & 0 & 0 \end{pmatrix}, r = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix}.
 \end{align}
-The point clouds starts in its canonical form with the latent shape $v$ equal to zero. We set the initial scale $s$ to one, translation $t$ to zero and rotation $r$ to a unit rotation matrix. We use the Gram-Schmidt [] orthogonalization process to turn the six entries in $r$ into a proper 3D rotation matrix $R$. This method has been shown to enable stable learning of rotation matrices [].
+The point clouds starts in its canonical form with the latent shape $v$ equal to zero. We set the initial scale $s$ to one, translation $t$ to zero and rotation $r$ to a unit rotation matrix. We use the Gram-Schmidt orthogonalization process to turn the six entries in $r$ into a proper 3D rotation matrix $R$. This method has been shown to enable stable learning of rotation matrices \cite{falorsi18explorations, park22learning}.
 
 We decode the shape and pose parameters into a transformed point cloud
 \begin{align}
@@ -249,9 +256,9 @@ and define a loss function
 \end{align}
 The first term in the loss function is a one-sided Chamfer distance between the decoded and the observed point clouds. The second term is a regularizer on the size of the decoded object. Our implementation regularizes the object to fit into the smallest possible ball. Other options are possible, such as directly regularizing $v$ and $s$, regularizing the $L_2$ norm of $\mathrm{dec}$, etc. The main reason for the regularizer is to prevent large predicted meshes in real-world experiments, which might make it impossible to find collision-free motion plans.
 
-We minimize $\mathcal{L}$ with respect to $v, s, t$ and $r$ using the Adam optimizer [] with learning rate $10^{-2}$ for 100 steps. We set $\beta=10^{-2}$. We found the optimization process is prone to getting stuck in local minima; e.g., instead of aligning the handle of the decoded mug with the observed point cloud, the optimizer might change the shape of the decoded mug to hide its handle. Hence, we restart the process with many different random initial rotations and pick the solution with the lowest loss function. Further, we randomly subsample the point clouds at each gradient descent step -- this allows us to run 12 random starting orientations at once on a consumer GPU.
+We minimize $\mathcal{L}$ with respect to $v, s, t$ and $r$ using the Adam optimizer \cite{kingma17adam} with learning rate $10^{-2}$ for 100 steps. We set $\beta=10^{-2}$. We found the optimization process is prone to getting stuck in local minima; e.g., instead of aligning the handle of the decoded mug with the observed point cloud, the optimizer might change the shape of the decoded mug to hide its handle. Hence, we restart the process with many different random initial rotations and pick the solution with the lowest loss function. Further, we randomly subsample the point clouds at each gradient descent step -- this allows us to run 12 random starting orientations at once on a consumer GPU.
 
-As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh as described in Section X) and its pose represented by $t$ and $R$.
+As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh as described in Section \ref{sec:methods:mesh}) and its pose represented by $t$ and $R$.
 
 \subsection{Cloning Robot Actions via Interaction Points}
 
@@ -274,14 +281,14 @@ As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh a
         \includegraphics[width=\textwidth]{figures/contact_fig2.pdf}
         \caption{}
     \end{subfigure}
-    \caption{(a) Contacts between a gripper and a bowl extracted from a demonstration. (b) Nearby points between a mug and a tree extracted from a demonstration of hanging the mug on the tree. (c) A virtual point (red) representing the branch of the tree intersecting the handle of the mug. The red point is anchored to the mug using k nearest neighbors on the mug (four are shown in green) and moves as the mug warps. All points shown in this visualization are extracted automatically. \ob{TODO: The red point on the mug in (b) are pointing in the wrong way.}}
+    \caption{(a) Contacts between a gripper and a bowl extracted from a demonstration. (b) Nearby points between a mug and a tree extracted from a demonstration of hanging the mug on the tree. (c) A virtual point (red) representing the branch of the tree intersecting the handle of the mug. The red point is anchored to the mug using k nearest neighbors on the mug (four are shown in green) and moves as the mug warps. All points shown in this visualization are extracted automatically.} % \ob{TODO: The red point on the mug in (b) are pointing in the wrong way.}
     \label{fig:contacts}
 \end{figure}
 
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{figures/picks_and_places.pdf}
-    \caption{Two solutions for the best fit between the pairs of points on the (left) gripper and child object and (b) the child object and the target object. \evdp{sentence is difficult to parse} We sample the shown meshes from our latent space (Figure \ref{fig:latent}).}
+    \caption{Predicting grasps using interaction point warping. (a) the predicted grasp for a bowl/plate changes based on the curvature of the object. (b) the placement of a mug on a mug tree changes as the mug grows larger so that the branch of the tree is in the middle of the handle.}
     \label{fig:grasps_and_placements}
 \end{figure}
 
@@ -341,14 +348,82 @@ We can also warp the second object to shape $v'_2$ using Equation \ref{eq:contac
 \section{Experiments}
 \label{sec:exp}
 
-We evaluate both the perception and imitation learning capabilities of SA-Warp. In Section \ref{sec:exp:rearrangement}, we perform three object re-arrangement tasks with previously unseen objects both in simulation and on a physical robot. In Section \ref{sec:exp:trajectory}, we use a painting task to demonstrate that SA-Warp is able to clone manipulation trajectories. In Section \ref{sec:exp:wild}, we show our system is capable of proposing diverse grasps in a cluttered kitchen setting from a single point cloud. We also validate the assumption that we can reliably detect and segment objects; we use a pre-trained vision transformer [metaai segment anything]. Our real-world results amount to about 50 hours of robot data \tk{Used for training / estimation?}.
+We evaluate both the perception and imitation learning capabilities of Interaction Warping. In Section \ref{sec:exp:rearrangement}, we perform three object re-arrangement tasks with previously unseen objects both in simulation and on a physical robot. In Section \ref{sec:exp:wild}, we show our system is capable of proposing grasps in a cluttered kitchen setting from a single RGB-D image.
 
 \subsection{Object Re-arrangement}
 \label{sec:exp:rearrangement}
 
-\textbf{Setup:} For our simulated experiment, we use an open-source environment with three tasks: mug on a mug-tree, bowl on a mug and a bottle in a  container \cite{simeonov22se}\footnote{\url{https://github.com/anthonysimeonov/relational_ndf}}. ... our model receives a single demonstration, whereas the baseline has 10; I might report the baseline with different number of demos ... \rst{compare number of objects trained on, too} Given a segmented point cloud of the initial scene, the goal is to predict the pose of the child object relative to the parent object (e.g.~the mug relative to the mug-tree) so that the task constraint is satisfied. The simulation does not test grasp prediction. For our real-world experiment, we perform both grasps and placements based on a single demonstration.
+\begin{figure}[]
+    \centering
 
-\textbf{Result:} Tables \ref{tab:real_world}, \ref{tab:simulation}, \ref{tab:training}.
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/1.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/2.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/3.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/4.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/5.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/6.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/7.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/8.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/9.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/10.jpg}
+    \end{subfigure}
+
+    \caption{Example of an episode of putting a mug on a tree starting from a tilted mug pose.}
+    \label{fig:mug_tree_episode}
+\end{figure}
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lllcccccc}
+        \toprule
+          & & \# Train. & \multicolumn{2}{c}{\textbf{Mug on Tree}} & \multicolumn{2}{c}{\textbf{Bowl on Mug}} & \multicolumn{2}{c}{\textbf{Bottle in Container}} \\
+         \textbf{Method} & \# Demos & Meshes & Upright & Arbitrary & Upright & Arbitrary & Upright & Arbitrary \\
+         \midrule
+         R-NDF & 1 & 200 & 60.0 & 51.0 & 69.0 & 68.0 & 19.0 & 8.0 \\
+         TAX-Pose & 1 & 200 & 61.0 & 41.0 & 16.0 & 9.0 & - & - \\
+         \textbf{IW} & 1 & 10 & \textbf{86.0} & \textbf{83.0} & \textbf{82.0} & \textbf{84.0} & \textbf{62.0} & \textbf{60.0} \\
+         \midrule
+         R-NDF & 5 & 200 & 88.0 & \textbf{89.0} & 53.0 & 46.0 & 78.0 & 47.0 \\
+         TAX-Pose & 5 & 200 & 82.0 & 51.0 & 29.0 & 14.0 & - & - \\
+         \textbf{IW} & 5 & 10 & \textbf{90.0} & 87.0 & \textbf{75.0} & \textbf{77.0} & \textbf{79.0} & \textbf{79.0} \\
+         \midrule
+         R-NDF \cite{simeonov22se} & 10 & 200 & 71.0 & 70.0 & 69.0 & 60.0 & \textbf{81.0} & 59.0 \\
+         TAX-Pose \cite{pan22taxpose} & 10 & 200 & 82.0 & 52.0 & 20.0 & 20.0 & 2.0 & 1.0 \\
+         \textbf{IW (Ours)} & 10 & 10 & \textbf{88.0} & \textbf{88.0} & \textbf{83.0} & \textbf{86.0} & 70.0 & \textbf{83.0} \\
+         \bottomrule
+    \end{tabular}
+    \caption{Success rates of predicted target poses of objects in \hl{simulation}. Upright and Arbitrary refer to the starting pose of the manipulated object. Each entry is measured over 100 trials with unseen object pairs.}
+    \label{tab:simulation}
+\end{table}
 
 \begin{table*}[t!]
     \centering
@@ -357,122 +432,103 @@ We evaluate both the perception and imitation learning capabilities of SA-Warp. 
           & \multicolumn{2}{c}{\textbf{Mug on Tree}} & \multicolumn{2}{c}{\textbf{Bowl on Mug}} & \multicolumn{2}{c}{\textbf{Bottle in Container}} & \multicolumn{2}{c}{\textbf{Mean}} \\
          \textbf{Method} & Pick & Pick\&Place & Pick & Pick\&Place & Pick & Pick\&Place & Pick & Pick\&Place \\
          \midrule
-         NDF$^1$ & 93.3 & 26.7 & 75.0 & 33.3 & 20.0 & 6.7 & 62.8 & 22.2 \\
-         \midrule
-         R-NDF & 60.0 & 13.3 & 41.7 & 41.7 & 33.3 & 20.0 & 45.0 & 25.0 \\
-         \textbf{SA-Warp} & \textbf{100.0} & \textbf{93.3} & \textbf{83.3} & \textbf{75.0} & \textbf{80.0} & \textbf{73.3} & \textbf{87.8} & \textbf{80.5} \\
+         NDF$^1$ \cite{simeonov22neural} & 93.3 & 26.7 & 75.0 & 33.3 & 20.0 & 6.7 & 62.8 & 22.2 \\
+         R-NDF \cite{simeonov22se} & 60.0 & 13.3 & 41.7 & 41.7 & 33.3 & 20.0 & 45.0 & 25.0 \\
+         \textbf{IW (Ours)} & \textbf{100.0} & \textbf{93.3} & \textbf{83.3} & \textbf{75.0} & \textbf{80.0} & \textbf{73.3} & \textbf{87.8} & \textbf{80.5} \\
          \bottomrule
     \end{tabular}
-    \caption{\rob{fill in results!} Success rates of \hl{real-world robot} \evdp{real-world means on a real robot?} pick-and-place experiments with a single demonstration. $^1$The target object (e.g. the mug tree) is in a fixed pose for this experiment.}
+    \caption{Success rates of \hl{real-world robot} pick-and-place experiments with a single demonstration. The manipulated object (e.g. a mug) starts in an arbitrary pose (we use a stand to get a range of poses) and the target object (e.g. a mug-tree) starts in an arbitrary upright pose. $^1$The target object (e.g. the mug tree) is in a fixed pose for this experiment, as NDF does not handle target object variation. Each entry is measured over 25 - 30 trials with unseen object pairs.}
     \label{tab:real_world}
 \end{table*}
 
-\begin{table}[h]
-    \centering
-    \begin{tabular}{llcccccc}
-        \toprule
-          & & \multicolumn{2}{c}{\textbf{Mug on Tree}} & \multicolumn{2}{c}{\textbf{Bowl on Mug}} & \multicolumn{2}{c}{\textbf{Bottle in Container}} \\
-         \textbf{Method} & \# Demos & Upright & Arbitrary & Upright & Arbitrary & Upright & Arbitrary \\
-         \midrule
-         R-NDF & 1 & 60.0 & 51.0 & 69.0 & 68.0 & 19.0 & 8.0 \\
-         TAX-Pose & 1 & - & - & - & - & - & - \\
-         \textbf{SA-Warp} & 1 & \textbf{86.0} & \textbf{83.0} & \textbf{82.0} & \textbf{84.0} & \textbf{62.0} & \textbf{60.0} \\
-         \midrule
-         R-NDF & 5 & 88.0 & \textbf{89.0} & 53.0 & 46.0 & 78.0 & 47.0 \\
-         TAX-Pose & 5 & - & - & - & - & - & - \\
-         \textbf{SA-Warp} & 5 & \textbf{90.0} & 87.0 & \textbf{75.0} & \textbf{77.0} & \textbf{79.0} & \textbf{79.0} \\
-         \midrule
-         R-NDF & 10 & 71.0 & 70.0 & 69.0 & 60.0 & \textbf{81.0} & 59.0 \\
-         TAX-Pose & 10 & - & - & - & - & - & - \\
-         \textbf{SA-Warp} & 10 & \textbf{88.0} & \textbf{88.0} & \textbf{83.0} & \textbf{86.0} & 70.0 & \textbf{83.0} \\
-         \bottomrule
-    \end{tabular}
-    \caption{Success rates of predicted target poses of objects in \hl{simulation}. Upright and arbitrary starting object poses.}
-    \label{tab:simulation}
-\end{table}
+\textbf{Setup:} For our simulated experiment, we use an open-source environment with three tasks: mug on a mug-tree, bowl on a mug and a bottle in a  container \cite{simeonov22se}\footnote{\url{https://github.com/anthonysimeonov/relational_ndf}}. Given a segmented point cloud of the initial scene, the goal is to predict the pose of the child object relative to the parent object (e.g.~the mug relative to the mug-tree) so that the task constraint is satisfied. The simulation does not test grasp prediction.
 
-\begin{table}[h]
-    \centering
-    \begin{tabular}{lccc}
-        \toprule
-         \textbf{Method} & \# Train. Objects & \# Demos. & Labels \\
-         \midrule
-         NDF & 200 & 5-10 & Yes \\
-         R-NDF & 200 & 5-10 & Yes \\
-         TAX-Pose & 200 & 5-10 & No \\
-         \textbf{SA-Warp} & \textbf{10} & \textbf{1} & \textbf{No} \\
-         \bottomrule
-    \end{tabular}
-    \caption{Required training objects, training demonstrations and additional labeled data across methods.}
-    \label{tab:training}
-\end{table}
+For our real-world experiment, we perform both grasps and placements based on a single demonstration. We capture a fused point cloud using three RealSense D455 depth cameras. We use point cloud clustering and heuristics to detect objects in the real-world scenes (details in Appendix \ref{appendix:experiment:rearrangement}) and perform motion planning with collision checking based on the meshes predicted by our method. We evaluate the ability of each method to pick and place unseen objects with a varying shape and pose (Figure \ref{fig:object_sets}).
 
+\textbf{Result:} We find that interaction warping generally outperforms Relational Neural Descriptor Fields \cite{simeonov2022neural} and TAX-Pose \cite{pan22taxpose} on the simulated relational placement prediction tasks (Table \ref{tab:simulation}) with 20 times fewer training objects. IW can succeed with one demonstration of a task, whereas R-NDF and TAX-Pose usually require five demonstrations. 
 
+In real-world pick and place experiments, we demonstrate the ability of IW to solve the three object re-arrangement tasks -- mug on tree, bowl on mug and bottle in box -- with unseen objects and variation in the starting pose of objects (Table \ref{tab:real_world}). We find that (Relational) Neural Descriptor Fields \cite{simeonov22neural,simeonov22se} struggle with the partial and noisy real-world point clouds. This often results in both the pick and place actions being too imprecise to successfully solve the task. Pre-training (R-)NDF on real-world point clouds could help, but note that IW was also pre-trained on simulated point clouds. We find that the warping of canonical objects is more robust to noisy and occluded point clouds. We show an example episode of mug on tree in Figure \ref{fig:mug_tree_episode}.
 
-\subsection{Trajectory Cloning}
-\label{sec:exp:trajectory}
+We used the meshes predicted by IW to perform collision checking during motion planning. We do not perform collision checking (other than to avoid contact with the table) when using (R-)NDF as these methods do not predict object meshes, but failures due to a collision between the robot and one of the object were infrequent.
 
-\textbf{Setup:} We record a single demonstration of a robot painting a particular pattern on a canvas with a brush. We then automatically segment this demonstration into waypoints and record the contact of the brush with the canvas at various waypoints. During testing, the robot uses a different brush and paints on a canvas that is potentially curved. We show that we can make predictions about the object poses that constitute the trajectory regardless of the shape of the brush and the canvas.
-
-\textbf{Result:} \ob{Abhinav}
+% \subsection{Trajectory Cloning}
+% \label{sec:exp:trajectory}
+% \textbf{Setup:} We record a single demonstration of a robot painting a particular pattern on a canvas with a brush. We then automatically segment this demonstration into waypoints and record the contact of the brush with the canvas at various waypoints. During testing, the robot uses a different brush and paints on a canvas that is potentially curved. We show that we can make predictions about the object poses that constitute the trajectory regardless of the shape of the brush and the canvas.
+% \textbf{Result:} \ob{Abhinav}
 
 \subsection{Grasp Prediction in the Wild}
 \label{sec:exp:wild}
 
-\textbf{Setup:}
-In our project, our primary objective was to predict objects in the wild, so we chose DETIC, an object detection method capable of classifying 20,000+ classes. We concentrated on object detection and 3D semantic segmentation using PointNet. However, we encountered challenges with the PointNet network, which led us to adapt the experiment by performing 2D object detection, specifically for mugs or cups.
+\begin{figure}[]
+    \centering
 
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/2/1.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/2/0.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/2/3_sim.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/2/3.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/2/4.png}
+    \end{subfigure}
 
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/5/1.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/5/0.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/5/3_sim.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/5/3.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/5/4.png}
+        \caption{}
+    \end{subfigure}
 
-We explored various methods for 2D object detection and semantic segmentation in different environments, including YOLO V8 Nano (Class Moderated), OWL ViT Image-Guided Detection, OWL ViT Text-Guided Detection, DETIC Object Detector, and the Segment Anything Model (SAM). Our focus was on the combination of SAM and DETIC, which we applied in home and lab environments to assess their performance and effectiveness.
+    \caption{Grasp prediction in the wild: (a) an RGB-D (depth not shown) image from a RealSense D435 camera, (b) open-vocabulary object detection and segmentation using Detic \cite{zhou22detecting} and Segment Anything \cite{kirillov23segment}, (c) object meshes predicted by our method based on segmented point clouds (we filter out distant and small objects), (d) meshes projected into the original image, (e) grasps predicted by interaction warping projected into the original image. Figure \ref{fig:real2sim2real_part2} has additional examples.}
+    \label{fig:real2sim2real}
+\end{figure}
 
-By employing DETIC for object detection with its vast range of classes, we aimed to improve the accuracy of the pipeline. We then used the output bounding boxes from DETIC as prompts for the SAM model, allowing us to achieve better segmentation results. This combination not only enhanced the overall accuracy and effectiveness of the pipeline but also highlighted the adaptability of the SAM model in various scenarios.
+\textbf{Setup:} In this experiment, we show that we can combine our method with a state-of-the-art object detection and segmentation pipeline to predict object meshes and robot grasps from a single RGB-D image. We use an open-vocabulary object detector Detic \cite{zhou22detecting} to predict bounding boxes for common household objects and Segment Anything \cite{kirillov23segment} to predict segmentation masks within these bounding boxes. We turn the predicted RGB-D images into point clouds and use our shape warping model to predict a mesh for each object. Finally, we use interaction warping to predict a robot grasp based on a single demonstration per each object class (detailes in Appendix \ref{appendix:experiment:wild}).
 
-Despite some limitations, our project provided valuable insights into the challenges of object detection and 3D semantic segmentation, emphasizing the importance of a more appropriate dataset and addressing the limitations of the PointNet network. Our efforts in combining DETIC and SAM demonstrated the potential of such an approach for future research in the field.
-\ob{Kishore -- RGBD to segmented point clouds to grasp candidates}
-
-% \begin{figure*}[]
-%     \centering
-%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/virtual/1.png}
-%         \caption{}
-%     \end{subfigure}
-%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/virtual/2.png}
-%         \caption{}
-%     \end{subfigure}
-%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/virtual/3.png}
-%         \caption{}
-%     \end{subfigure}
-%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/virtual/4.png}
-%         \caption{}
-%     \end{subfigure}
-%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/virtual/5.png}
-%         \caption{}
-%     \end{subfigure}
-%     \begin{subfigure}{(\linewidth - 0.1\linewidth)/6}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/virtual/6.png}
-%         \caption{}
-%     \end{subfigure}
-%     \caption{Sketch: (a): a demonstration of the mug tree task, (b) a virtual point (green) in the middle of the mug's handle, (c) 10 (?) nearest neighbors (blue\ob{almost invisible, I know}), (d-f) warping the virtual point together with the mug.}
-%     \label{fig:virtual_points}
-% \end{figure*}
+\textbf{Result:} We show the results for two example scenes in Figure \ref{fig:real2sim2real} and \ref{fig:real2sim2real_part2}. Our perception pipeline can successfully detect objects in images with cluttered backgrounds. Our warping algorithm accounts for the variation in the shape and size of objects and our interaction warping algorithm can generalize the demonstrated grasps to the novel objects.
 
 \section{Limitations}
 
+\begin{itemize}
+    \item We run joint shape warping and pose estimation using gradient descent and many random restarts. This process takes around 25 seconds per object on a single desktop GPU. Future work could train an additional neural network to skip the gradient descent, or to predict favorable initialization.
+    \item Shape warping represented using PCA cannot capture the detail of each object. Tasks that require a high-degree of precision might have a low success rate. But, PCA can be easily replaced with a higher capacity model (which might require more than 10 training meshes per object class).
+    \item Our method does not learn from its failures; its behavior is fully determined by the shape warping model and a single demonstration. But, the entire prediction process, from shape warping to interaction point cloning, is technically fully differentiable.
+    \item While relatively robust to partial and noisy point clouds, our method cannot reason about object parts that are not shown in the point cloud. For example, our method currently cannot infer that a handle of a mug is occluded by the mug itself if it is not shown in the point cloud. It would instead predict an arbitrary orientation of the mug.
+\end{itemize}
 
 \section{Conclusion}
 
-Object decomposition / part segmentation \cite{tenorth13decomposing,vahrenkamp16partbased,chen22neural}
+We introduced Interaction Warping, a method for one-shot learning of 3D robotic manipulation policies. We have shown that warping of shapes and interaction points leads to successful learning of policies for object re-arrangement. We have also shown that we can use open-vocabulary detection and segmentation models to detect objects in the wild and predict their meshes and possible robot grasps. Future work could equip interaction warping with a more expressive shape warping model, so that it can predict 3D meshes of novel objects with high precision. Another interesting direction is to combine shape warping with object decomposition \cite{tenorth13decomposing,vahrenkamp16partbased,chen22neural} to learn representations of parts of complex objects, such as the door of a toaster oven or a water tank of a coffee machine. Shape warping could be used to represent articulate as well as deformable objects.
 
 %===============================================================================
 
@@ -540,5 +596,160 @@ Among the $K$ example objects, we would like to find the one that is the easiest
 
 \subsection{Object re-arrangement on a physical robot}
 \label{appendix:experiment:rearrangement}
+
+\begin{figure}[]
+    \centering
+
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/3}
+        \centering
+        \includegraphics[width=\linewidth]{figures/object_sets/mug_on_tree.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/3}
+        \centering
+        \includegraphics[width=\linewidth]{figures/object_sets/bowl_on_mug.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/3}
+        \centering
+        \includegraphics[width=\linewidth]{figures/object_sets/bottle_in_box.png}
+        \caption{}
+    \end{subfigure}
+
+    \caption{Objects used for the real-world tasks: (a) mug on tree, (b) bowl (or plate) on mug and (c) bottle in box. We use a single pair of objects to generate demonstrations and test on novel objects.}
+    \label{fig:object_sets}
+\end{figure}
+
+\subsection{Grasp prediction in the wild}
+\label{appendix:experiment:wild}
+
+We use a single RealSense D435 RGB-D camera. Our goal is to be able to demonstrate any task in the real world without having to re-train our perception pipeline. Therefore, we chose an open-vocabulary object detection model Detic \cite{zhou22detecting}, which is able to detect object based on natural language descriptions. We use the predicted bounding boxes from Detic to condition a Segment Anything model \cite{kirillov23segment} to get accurate class-agnostic segmentation masks. Both Detic\footnote{https://github.com/facebookresearch/Detic} and Segment Anything\footnote{https://github.com/facebookresearch/segment-anything} come with several pre-trained models and we used the largest available. Finally, we select the pixels within each segmentation mask and use the depth information from our depth camera to create a per-object point cloud. We use DBSCAN to clouster the point cloud and filter out outlier points. Then, we perform mesh warping and interaction warping to predict object meshes and grasps.
+
+Previously, we experimented with Mask R-CNN \cite{he17mask} and Mask2Former \cite{cheng22maskedattention} trained on standard segmentation datasets, such as COCO \cite{lin15microsoft} and ADE20k \cite{scene}. We found that these dataset lack the wide range of object classes we would see in a household environment and that the trained models struggle with out-of-distribution viewing angles, such as looking from a steep top-down angle. We also experimented with an open-vocabulary object detection model OWL-ViT \cite{minderer22simple} and found it to be sensitive to scene clutter and the viewing angle.
+
+% \ob{TODO: Re-write this to better fit into the paper.} In our project, our primary objective was to predict objects in the wild, so we chose DETIC, an object detection method capable of classifying 20,000+ classes. We concentrated on object detection and 3D semantic segmentation using PointNet. However, we encountered challenges with the PointNet network, which led us to adapt the experiment by performing 2D object detection, specifically for mugs or cups.
+% We explored various methods for 2D object detection and semantic segmentation in different environments, including YOLO V8 Nano (Class Moderated), OWL ViT Image-Guided Detection, OWL ViT Text-Guided Detection, DETIC Object Detector, and the Segment Anything Model (SAM). Our focus was on the combination of SAM and DETIC, which we applied in home and lab environments to assess their performance and effectiveness.
+% By employing DETIC for object detection with its vast range of classes, we aimed to improve the accuracy of the pipeline. We then used the output bounding boxes from DETIC as prompts for the SAM model, allowing us to achieve better segmentation results. This combination not only enhanced the overall accuracy and effectiveness of the pipeline but also highlighted the adaptability of the SAM model in various scenarios.
+% Despite some limitations, our project provided valuable insights into the challenges of object detection and 3D semantic segmentation, emphasizing the importance of a more appropriate dataset and addressing the limitations of the PointNet network. Our efforts in combining DETIC and SAM demonstrated the potential of such an approach for future research in the field.
+% \ob{Kishore -- RGBD to segmented point clouds to grasp candidates}
+
+\section{Additional Experiments}
+
+\begin{figure}[]
+    \centering
+
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/6/1.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/6/0.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/6/3_sim.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/6/3.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/6/4.png}
+    \end{subfigure}
+
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/7/1.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/7/0.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/7/3_sim.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/7/3.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/7/4.png}
+    \end{subfigure}
+
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/3/1.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/3/0.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/3/3_sim.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/3/3.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/3/4.png}
+    \end{subfigure}
+
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/4/1.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/4/0.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/4/3_sim.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/4/3.png}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/4/4.png}
+    \end{subfigure}
+
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/8/1.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/8/0.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/8/3_sim.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/8/3.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/real2sim2real/8/4.png}
+        \caption{}
+    \end{subfigure}
+
+    \caption{Additional examples, please see Figure \ref{fig:real2sim2real}.}
+    \label{fig:real2sim2real_part2}
+\end{figure}
 
 \end{document}
