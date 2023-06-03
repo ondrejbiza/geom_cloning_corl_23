@@ -48,11 +48,15 @@
 % notation
 \newcommand{\pcx}[1]{\mathrm{pcd}^{(#1)}}
 \newcommand{\wxy}[2]{W_{#1 \rightarrow #2}}
+\newcommand{\bwxy}[2]{\bar{W}_{#1 \rightarrow #2}}
+\newcommand{\vxy}[2]{V_{#1 \rightarrow #2}}
 \newcommand{\pci}{\pcx{i}}
 \newcommand{\pcj}{\pcx{j}}
 \newcommand{\pcc}{\pcx{C}}
 \newcommand{\wij}{\wxy{i}{j}}
 \newcommand{\wci}{\wxy{C}{i}}
+\newcommand{\bwci}{\bwxy{C}{i}}
+\newcommand{\vci}{\vxy{C}{i}}
 
 % ### custom packages end ###
 
@@ -85,7 +89,7 @@
   (Not final order) Ondrej Biza$^1$, Skye Thompson$^2$, Kishore Reddy Pagidi$^1$, Abhinav Kumar$^1$, \\
   \textbf{Elise van der Pol$^3$, Robin Walters$^1$, Thomas Kipf$^4$,} \\
   \textbf{Jan-Willem van de Meent$^{1,5}$, Lawson Wong$^1$, Robert Platt$^1$} \\
-  $^1$ Northeastern University, $^2$ Brown University, $^3$ Microsoft Research, \\$^4$ Google Research, $^5$ University of Amsterdam \\
+  $^1$ Northeastern University, $^2$ Brown University, $^3$ Microsoft Research, \\$^4$ Google DeepMind, $^5$ University of Amsterdam \\
   \texttt{biza.o@northeastern.edu} \\
 }
 
@@ -96,7 +100,7 @@
 %===============================================================================
 
 \begin{abstract}
-Imitation learning of robot policies from few demonstrations in crucial in open-ended applications. We propose a new method, Interaction Warping, for learning 3D robotic manipulation policies from a single demonstration. Our method infers the 3D mesh of each object in the environment using shape warping, a technique for aligning point clouds across object instances. We then use the warped meshes to transfer interaction points from a single demonstration to a scene with novel objects. The notion of interaction points allows us to transfer robot grasps and relational object placements. We show successful one-shot imitation learning on three simulated and real-world object re-arrangement tasks. We also demonstrate the ablity of our method to predict object meshes and robot grasps in the wild.
+Imitation learning of robot policies from few demonstrations is crucial in open-ended applications. We propose a new method, Interaction Warping, for learning 3D robotic manipulation policies from a single demonstration. Our method infers the 3D mesh of each object in the environment using shape warping, a technique for aligning point clouds across object instances. We then use the warped meshes to transfer interaction points from a single demonstration to a scene with novel objects. The notion of interaction points allows us to transfer robot grasps and relational object placements. We show successful one-shot imitation learning on three simulated and real-world object re-arrangement tasks. We also demonstrate the ability of our method to predict object meshes and robot grasps in the wild.
 \end{abstract}
 
 % Two or three meaningful keywords should be added here
@@ -126,16 +130,23 @@ Imitation learning of robot policies from few demonstrations in crucial in open-
 \end{wrapfigure}
 
 
-In one shot imitation learning, we are given a single demonstration of a desired manipulation behavior and we must find a policy that can reproduce the behavior in different situations. The classic example of this is the Mug Tree task where the robot must grasp a mug and hang it on a tree by its handle. Given a single demonstration of grasping a mug and hanging it on a tree (top row of Figure~\ref{fig:mugontree}), we want to obtain a policy that can successfully perform the same task for differently shaped objects placed in different poses, e.g. differently shaped mugs and trees (bottom row of Figure~\ref{fig:mugontree}). There are two key challenges here. First, the demonstration must generalize to novel object instances, e.g. different mugs. Second, the policy must reason in $SE(3)$ rather than in $SE(2)$ where the problem is significantly easier.
+In one shot imitation learning, we are given a single demonstration of a desired manipulation behavior and we must find a policy that can reproduce the behavior in different situations. The classic example of this is the Mug Tree task where the robot must grasp a mug and hang it on a tree by its handle. Given a single demonstration of grasping a mug and hanging it on a tree (top row of Figure~\ref{fig:mugontree}), we want to obtain a policy that can successfully perform the same task for differently shaped objects placed in different poses, e.g. differently shaped mugs and trees (bottom row of Figure~\ref{fig:mugontree}). There are two key challenges here. First, the demonstration must generalize to novel object instances, e.g. different mugs. Second, the policy must reason in $SE(3)$, rather than in $SE(2)$ where the problem is much easier. 
 
-% A variety of effective approaches have been proposed for imitation learning in the plane, e.g.~\cite{}, but the problem in $SE(3)$ is much harder. 
+To be successful in this setting, it is generally necessary to bias the model significantly toward the object manipulation domains in question. One popular method of accomplishing this is to correspond points on the surface of the objects in the demonstration(s) with the same points on the objects seen at test time. This approach is generally implemented using \emph{keypoints}, point descriptors that encode the semantic location of the point on the surface of an object and transfer well between different novel object instances~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. For example, points on handles from different mugs should be assigned similar descriptors, thereby helping to correspond handles on different mug instances. A key challenge therefore becomes how to learn semantically meaningful keypoint descriptors. Early work used hand coded feature labels~\cite{manuelli2019kpam}. More recent methods learn descriptors during a pretraining step where category-level object descriptor models are trained using multiple in-category object instances over many categories. This can be accomplished using implicit object models~\cite{simeonov2022neural} or point models~\cite{pan2022tax}. 
 
-To be successful in $SE(3)$, it is generally necessary to bias the model significantly toward the object manipulation domains in question. One popular method of accomplishing this is to use keypoints~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. The idea here is to train a neural network model to assign descriptors to points on a novel object instance as a function of their semantic location on the object, e.g. points on the handles from different mugs would be assigned similar descriptors. Once these descriptors have been learned, they can be used to represent relative object poses for object categories in terms of the relative locations of their keypoints. This enables us to translate a demonstration on one of set of in-category objects to a different set of in-category objects. For example, the system would be able to translate the demonstration in the top row of Figure~\ref{fig:mugontree} to produce the behavior in the bottom row of Figure~\ref{fig:mugontree}.
+% More recent methods learn descriptors as the byproduct of an implicit object model~\cite{simeonov2022neural}. Other methods learn a point embedding using a constrastive loss on a DGCNN~\cite{wang2019dynamic} model~\cite{pan2022tax}. 
 
-Within the context of keypoint methods, a key challenge becomes how to learn semantically meaningful keypoint descriptors. This generally happens during a pretraining step where category-level object models are trained using a large number (generally hundreds) of in-category object instances for each category, e.g. hundreds of different instances of mugs. Different methods use different descriptor models. Early work used hand coded feature labels~\cite{manuelli2019kpam}. More recent methods learn descriptors as the byproduct of an implicit object model~\cite{simeonov2022neural}. Other methods learn a point embedding using a constrastive loss on a DGCNN~\cite{wang2019dynamic} model~\cite{pan2022tax}. The common thread here is that all of these methods involve a heavyweight category level object model that is trained on hundreds of objects to produce keypoint descriptors.
+% This generally happens during a pretraining step where category-level object descriptor models are trained using a large number (generally hundreds) of in-category object instances for each category, e.g. hundreds of different instances of mugs. 
 
-This paper proposes a different approach to the problem based on Coherent Point Drift (CPD)~\cite{myronenko2010point}, a point set registration algorithm. Using CPD, we train a shape completion model to register a novel in-category object instance to a canonical object model in which the a task has been defined via one-shot demonstration. The canonical task can then be projected into scenes with novel in-category objects by registering the new objects to the canonical models. Our method has several advantages over the previous work mentioned above~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. First, it performs better, both in simulation and on robotic hardware, in terms of its ability to successfully perform a novel instance of a demonstrated task. Second, it requires an order of magnitude fewer object instances to train each new object category -- tens of object instances rather than hundreds. Third, our method is completely devoid of neural networks -- the approach is based on Gaussian Mixture models instead. This makes the approach more computationally efficient and it means that it is much easier to reason about issues like uncertainty and safety of the model. 
 
+
+% The common thread here is that all of these methods involve a heavyweight category level object model that is trained on hundreds of objects to produce keypoint descriptors.
+
+% keypoints~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. The idea here is to train a neural network model to assign descriptors to points on a novel object instance as a function of their semantic location on the object, e.g. points on the handles from different mugs would be assigned similar descriptors. Once these descriptors have been learned, they can be used to represent relative object poses for object categories in terms of the relative locations of their keypoints. This enables us to translate a demonstration on one of set of in-category objects to a different set of in-category objects. For example, the system would be able to translate the demonstration in the top row of Figure~\ref{fig:mugontree} to produce the behavior in the bottom row of Figure~\ref{fig:mugontree}.
+
+This paper proposes a different approach to the point correspondence problem based on Coherent Point Drift (CPD)~\cite{myronenko2010point}, a point set registration algorithm. We call this method \emph{Interaction Warping}. Using CPD, we train a shape completion model to register a novel in-category object instance to a canonical object model in which the a task has been defined via one-shot demonstration. The canonical task can then be projected into scenes with novel in-category objects by registering the new objects to the canonical models. Our method has several advantages over the previous work mentioned above~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. First, it performs better, both in simulation and on robotic hardware, in terms of its ability to successfully perform a novel instance of a demonstrated task. Second, it requires an order of magnitude fewer object instances to train each new object category -- tens of object instances rather than hundreds. Third, our method is completely devoid of neural networks -- the approach is based on Gaussian Mixture models instead. This makes the approach more computationally efficient \evdp{do you have an estimate of how much more?} and it means that it is much easier to reason about issues like uncertainty and safety of the model. 
+
+-- make sure we talk about novel instances, but known categories, i.e. category level manipulation
 
 % \subsection{Old Intro}
 
@@ -154,25 +165,23 @@ This paper proposes a different approach to the problem based on Coherent Point 
 
 \subsection{Imitation Learning from Few Demonstrations} 
 
-We build on a body of robotics work aimed at learning generalizable manipulation policies from few demonstrations. A seminal idea in the literature is a key-point-based representation of objects. \citet{manuelli19kpam} manually create a dataset of semantically meaningful key-points, such as the rim and the handle of a mug, and train a classifier to detect key-points on novel object instances. A task is defined as a time series of key-point positions. Then, a trajectory for a previously unseen object can be computed by matching the key-points on the novel object to the key-point positions seen in a demonstration. In comparison, our method does not require a manual labeling of key-points -- we use the inferred geometry of objects to automatically extract interaction points. \citet{gao21kpam,gao21kpamsc} further extend the key-point framework with feedback control and collision checking. Following works addressed key-point learning \cite{1910,vecerik20s3k,manuelli20keypoints,turpin21gift}.
+We build on a body of robotics work aimed at learning generalizable manipulation policies from few demonstrations. A seminal idea in the literature is based on key-point representations of objects \evdp{cite the paper that introduced the idea}. \citet{manuelli19kpam} manually create a dataset of semantically meaningful key-points, such as the rim and the handle of a mug, and train a classifier to detect key-points on novel object instances. A task is defined as a time series of key-point positions. Then, a trajectory for a previously unseen object can be computed by matching the key-points on the novel object to the key-point positions seen in a demonstration. In comparison, our method does not require a manual labeling of key-points -- we use the inferred geometry of objects to automatically extract interaction points. \citet{gao21kpam,gao21kpamsc} further extend the key-point framework with feedback control and collision checking. Later works addressed key-point learning \cite{1910,vecerik20s3k,manuelli20keypoints,turpin21gift}.
 
 A related idea is the learning of descriptors attached to arbitrary 2D or 3D key-points. \citet{florence18dense} use self-supervised learning to learn dense descriptors from images. These descriptors can be used to compute similarities of arbitrary key-points between different instances and poses of objects. \citet{chen22neural} compute descriptors of an arbitrary 3D coordinate, called Neural Descriptor Fields, using an implicit shape representation neural network conditioned on a point cloud \cite{mescheder19occupancy}. By attaching a pose of an object to a set of descriptors, they can match e.g.~the pose of a handle of a mug across different mug instances and poses. The method is used re-arrange objects with a variable initial pose and a fixed goal. \citet{simeonov22se,ryu22equivariant} represent pairs of objects using Neural Descriptor Fields to enable generalization across goal poses. \citet{chun23local} further leverage the locality bias of Neural Descriptor Fields to generalize demonstrations across object classes.
 
-Other prior works relied on CAD model matching \cite{klank09realtime,brook11collaborative,beetz11robotic,jakel12learning} and shape primitives \cite{miller03automatic} to reproduce grasps or manipulation trajectories. But, it can be difficult to generalize these methods to novel instances of objects. Recently, \citet{wen22you} tackled category-level manipulation by re-mapping key poses of objects across instances. \citet{pan22taxpose} make predictions about the desired pose of a child object related to a parent object (e.g. hanging a mug on a mug-tree) using cross-attention \cite{vaswani17attention} between the pair of point clouds.
+Other prior works relied on CAD model matching \cite{klank09realtime,brook11collaborative,beetz11robotic,jakel12learning} and shape primitives \cite{miller03automatic} to reproduce grasps or manipulation trajectories. However, it can be difficult to generalize these methods to novel instances of objects. Recently, \citet{wen22you} tackled category-level manipulation by re-mapping key poses of objects across instances. \citet{pan22taxpose} make predictions about the desired pose of a child object related to a parent object (e.g. hanging a mug on a mug-tree) using cross-attention \cite{vaswani17attention} between the pair of point clouds.
 
 \subsection{Shape Warping and Manipulation}
 
 Prior works explored the idea of learning a generative model of point clouds through non-rigid point cloud registration \cite{rodriguez18transferring,rodriguez18transferringa,klamt18supervised,thompson21shapebased}. The model is used to grasp objects based on partial point clouds \cite{rodriguez18transferring,rodriguez18transferringa,klamt18supervised} and to parameterize motion primitives \cite{thompson21shapebased}. In contrast, we learn a generative model of meshes, which we use to find interaction points in demonstrations of manipulation tasks, which in turn enable generalization across object instances. In addition, the pose of objects is either assumed to be given \cite{thompson21shapebased} or detected using a neural pose detector \cite{klamt18supervised}. We propose joint shape and pose inference using gradient descent with random restarts. Gradient descent on both the pose and the shape was used in \cite{rodriguez18transferring,rodriguez18transferringa}, but only to correct for minor deviations in pose. % TODO: ... also \cite{simeonov20long,you21omnihang,menon22viewpoint,lu22online,wen22you,cong23comprehensive} ...
 
-A second related line work is focused on detecting the contacts between a gripper and an object, and then warping the contact points to fit a novel object \cite{li07datadriven,benamor12generalization,hillenbrand12transferring,jakel12learning,stouraitis15functional,rodriguez18learning,pavlichenko19autonomous,tian19transferring}. Instead of directly warping the contact points, we first register them on the canonical mesh corresponding to the grasped object class. This way, we can predict grasps based on partial point clouds; we can even grasp a part of the object that is visually occluded. % TODO: more works
+A second related line of work is focused on detecting the contacts between a gripper and an object, and then warping the contact points to fit a novel object \cite{li07datadriven,benamor12generalization,hillenbrand12transferring,jakel12learning,stouraitis15functional,rodriguez18learning,pavlichenko19autonomous,tian19transferring}. Instead of directly warping the contact points, we first register them on the canonical mesh corresponding to the grasped object class. This way, we can predict grasps based on partial point clouds; we can even grasp a part of the object that is visually occluded. % TODO: more works
 
 Finally, point cloud warping has been used to manipulate deformable objects \cite{lee15learning,schulman16learning} and to parameterize a pouring skill \cite{brandi14generalizing}.
 
 
 %-- \cite{rodriguez18transferring,rodriguez18transferringa}: Similar to Skye's method; they learn a latent space of displacements w.r.t. a canonical point cloud using PCA. During inference, they use gradient descent to solve for both shape and pose. But, they do not tackle the problem of local minima and hence require the shapes to be already almost in alignment. I could give the example of a handle of a mug getting hidden because of local minima and how we solve that. They then use the latent space to somehow warp the grasp actions of a humanoid hand.
 
-\section{Background: Shape Warping by CPD and Gradient Descent}
-\label{sec:background}
 
 \begin{figure}
     \centering
@@ -181,37 +190,79 @@ Finally, point cloud warping has been used to manipulate deformable objects \cit
     \label{fig:warping}
 \end{figure}
 
-Shape warping aims to find the correspondence between the shape of two objects by altering one shape to fit the other (Figure \ref{fig:warping}). Usually, the first step is to turn both objects into point clouds. This can be accomplished by sampling the surface or the volume of the object, or directly using the vertices that make up the mesh of the object. Given a pair of point clouds to be matched, shape warping draws on the literature of non-rigid point cloud registration \cite{huang21comprehensive}. Next, we outline the Coherent Point Drift algorithm \cite{manuelli20keypoints}, a common method for aligning a pair of point clouds. We also introduce the necessary notation we will use throughout the paper.
-%\rob{This section is not nearly as clear as it should be. You should describe CPD as if you were teaching the method to someone who is new to it. The section is a little short; but most importantly, you introduce new notation when it seems unnecessary and present ideas in a way that makes it hard to follow.}
 
-Denote a pair of point clouds $\pci$ and $\pcj$. We want to compute a matrix of displacements $\wij$ that minimizes some distance function between $\pci + \wij$ and $\pcj$, such as the one-sided Chamfer distance:
-\begin{align}
-    d\left( \pci + \wij, \pcj \right) = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{ \pci_l + W_{i \rightarrow j, l} - \pcj_k }_2.
-\end{align}
-Note that the two point clouds can have a different number of points. In general, $\wij$ can re-arrange $\pci$ in an arbitrary way, leading to a mapping that is not useful. The Coherent Point Drift (CPD) algorithm regularizes $\wij$ so that nearby points in $\pci$ are displaced similarly. CPD formulates the problem as a fitting of a Gaussian Mixture Model (GMM), where $\pci$ is a set of components and $\pcj$ is the data. It uses expectation maximization to optimize the objective function
-\begin{align}
-    J(\wij) = - \sum_{k=1}^{|\pcj|} \log \sum_{l=1}^{|\pci|} \exp \left( \frac{1}{2 \sigma^2} \norm{\pcj_k - (\pci + \wij)_l} \right) + \frac{\alpha}{2} \phi(\wij).
-\end{align}
-The regularizer $\phi$ penalizes high frequencies in $\wij$, so that the displacements applied to $\pci$ do not oscillate among nearby points.
+% \section{Background: Shape Warping by CPD and Gradient Descent}
+% \section{Background: Coherent Point Drift (CPD)}
+\section{Background}
+\label{sec:background}
 
-\citet{rodriguez18transferring} observed that we can treat each displacement matrix $\wij$ as a data point in order to learn a generative model of object shapes. Given a canonical object $\pcc$ and a set of warps $\{ \wci \}_{i=1}^K$, each matrix $\wci$ is flattened and treated as a feature vector. Then, we fit a PCA projection matrix $W \in \mathbb{R}^{|\pcc|{\times}D}$ to the data, which allows us to represent each shape by a low-dimensional latent vector $v$:
+\paragraph{Coherent Point Drift (CPD)}
+
+Given two point clouds, $\pci \in \mathbb{R}^{3 \times n}$ and $\pcj \in \mathbb{R}^{3 \times m}$, Coherent Point Drift (CPD) finds a displacement $\wij  \in \mathbb{R}^{3 \times n}$ of the points $\pci$ that brings them as close as possible (in an L2 sense) to the points $\pcj$~\cite{myronenko2010point}. In particular, PCD finds the displacement $\wij$ that minimizes the one-sided Chamfer distance:
 \begin{align}
-    \pcx{v} = \pcc + W v.
+    d\left( \pci + \wij, \pcj \right) = \frac{1}{m} \sum_{k=1}^{m} \min_l \norm{ \pci_l + W_{i \rightarrow j, l} - \pcj_k }_2,
+    \label{eqn:chamfer}
 \end{align}
-Given a new point cloud $\pci$, we infer its shape by solving the following optimization problem by gradient descent:
+where $\pcj_k$ denotes the $k^{th}$ column of $\pcj$, $\pci_l$ denotes the $l^{th}$ column of $\pci$, and $W_{i \rightarrow j, l}$ denotes the $l^{th}$ column of $\wij$. Note that $\pci$ and $\pcj$ do not need to have the same number of points, i.e. in general $n \neq m$. 
+
+In order to minimize Equation~\ref{eqn:chamfer} with respect to $\wij$, CPD minimizes the following smooth approximation,
 \begin{align}
-    v^* = \argmin_{v \in \mathbb{R}^D} d(\pcc + W v, \pci).
+    J(\wij) = - \sum_{k=1}^{m} \log \sum_{l=1}^{n} \exp \left( \frac{1}{2 \sigma^2} \norm{\pci_l + W_{i \rightarrow j, l} - \pcj_k } \right) + \frac{\alpha}{2} \phi(\wij),
 \end{align}
-Finally, the term $Wv$ can be replaced by a more expressive model, e.g. an auto-encoder \cite{thompson21shapebased} or possibly a diffusion model \cite{nichol22pointe}. We use PCA for simplicity.
+using expectation maximization over point correspondences and distances (see~\cite{myronenko2010point} for details). This can be viewed as fitting a Gaussian Mixture Model of $n$ components to the data $\pcj$. Here, $\phi(\wij)$ is a regularizer that penalizes large differences between adjacent columns in the matrix. This incentivizes the optimization to not assign arbitrary correspondences between points in $\pci$ and $\pcj$.
+
+
+\paragraph{Generative Object Modeling Using CPD}
+
+CPD can be used as part of a linear generative model for in-category object shapes as follows~\cite{rodriguez18transferring}. Assume that we are given a set of point clouds, $\{\pcx{1}, \dots, \pcx{N}\}$, that describe $N$ object instances that all belong to a single category, e.g. a set of point clouds describing different mug instances. Each of these point clouds must be a full point cloud in the sense that it covers the entire object. Select a ``canonical'' object $\pcx{C}, C \in \{1,N\}$ and define a set of displacement matrices $\wxy{C}{i} = \pcx{C} - \pcx{i}, i \in \{1,N\}$. The choice of $C$ is arbitrary, but we choose the $C$ that minimizes the size of the displacement matrices, i.e. that minimizes $\sum_{i} \| \wxy{C}{i} \|_2$. Now, we calculate a low rank approximation of the space of object shape deformations using PCA. For each matrix $\wxy{C}{i} \in \mathbb{R}^{3 \times n}$, let $\bwxy{C}{i} \in \mathbb{R}^{3n \times 1}$ denote the flattened version. We form the $3n \times N$ data matrix $\bar{W}_C = \left[\bwxy{C}{1}, \dots, \bwxy{C}{N}\right]$ and calculate the $d$ dimensional PCA projection matrix $W \in \mathbb{R}^{3n \times d}$. This allows us to approximate novel in-category objects using low dimensional latent vector $v_{novel} \in \mathbb{R}^d$, $\pcx{novel} = \pcc + \textsc{reshape}(W v_{novel})$, where the $\textsc{reshape}$ operator casts back to a $3 \times n$ matrix. This is illustrated in Figure~\ref{fig:latent} where we show shapes generated by varying the first two principle components for the mug object category.
+
+% Finally, we use PCA to solve for the matrix $W \in \mathbb{R}^{d \times n}$ that approximates $\wxy{C}{i} \approx \vxy{C}{i} W$ where $\vxy{C}{i} \in \mathbb{R}^{3 \times d}$ is a low dimensional representation ($d \ll n$) of $\wxy{C}{i}$. This allows us to approximate novel in-category objects as low dimensional matrix $\vxy{C}{novel}$: $\pcx{novel} = \pcc + \vxy{C}{novel} W$. This is illustrated in Figure~\ref{fig:latent} where we show shapes generated by varying the first two principle components for the mug object category.
+
+\paragraph{Shape Completion From Partial Point Clouds}
+
+In practice, we want to be able to approximate complete point clouds for objects for which we only have a partial view~\cite{thompson21shapebased}. This can be accomplished using the generative model by solving for 
+\begin{align}
+    v^* = \argmin_{v \in \mathbb{R}^{d}} d(\pcc + \textsc{reshape}(Wv), \pcx{partial})
+\end{align}
+using gradient descent on $v$. Essentially, we are solving for the latent vector that gives us a reconstruction closest to the observed points.
+
+
+
+% Finally, the term $Wv$ can be replaced by a more expressive model, e.g. an auto-encoder \cite{thompson21shapebased} or possibly a diffusion model \cite{nichol22pointe}. We use PCA for simplicity.
+
+
+
+% \subsection{asdf}
+
+% Shape warping aims to find the correspondence between the shape of two objects by altering one shape to fit the other (Figure \ref{fig:warping}). Usually, the first step is to turn both objects into point clouds. This can be accomplished by sampling the surface or the volume of the object, or directly using the vertices that make up the mesh of the object. Given a pair of point clouds to be matched, shape warping draws on the literature of non-rigid point cloud registration \cite{huang21comprehensive}. Next, we outline the Coherent Point Drift algorithm \cite{manuelli20keypoints}, a common method for aligning a pair of point clouds. We also introduce the necessary notation we will use throughout the paper.
+
+% Denote a pair of point clouds $\pci$ and $\pcj$. We want to compute a matrix of displacements $\wij$ that minimizes some distance function between $\pci + \wij$ and $\pcj$, such as the one-sided Chamfer distance:
+% \begin{align}
+%     d\left( \pci + \wij, \pcj \right) = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{ \pci_l + W_{i \rightarrow j, l} - \pcj_k }_2.
+% \end{align}
+% Note that the two point clouds can have a different number of points. In general, $\wij$ can re-arrange $\pci$ in an arbitrary way, leading to a mapping that is not useful. The Coherent Point Drift (CPD) algorithm regularizes $\wij$ so that nearby points in $\pci$ are displaced similarly. CPD formulates the problem as a fitting of a Gaussian Mixture Model (GMM), where $\pci$ is a set of components and $\pcj$ is the data. It uses expectation maximization to optimize the objective function
+% \begin{align}
+%     J(\wij) = - \sum_{k=1}^{|\pcj|} \log \sum_{l=1}^{|\pci|} \exp \left( \frac{1}{2 \sigma^2} \norm{\pcj_k - (\pci + \wij)_l} \right) + \frac{\alpha}{2} \phi(\wij).
+% \end{align}
+% The regularizer $\phi$ penalizes high frequencies in $\wij$, so that the displacements applied to $\pci$ do not oscillate among nearby points.
+
+% \citet{rodriguez18transferring} observed that we can treat each displacement matrix $\wij$ as a data point in order to learn a generative model of object shapes. Given a canonical object $\pcc$ and a set of warps $\{ \wci \}_{i=1}^K$, each matrix $\wci$ is flattened and treated as a feature vector. Then, we fit a PCA projection matrix $W \in \mathbb{R}^{|\pcc|{\times}D}$ to the data, which allows us to represent each shape by a low-dimensional latent vector $v$:
+% \begin{align}
+%     \pcx{v} = \pcc + W v.
+% \end{align}
+% Given a new point cloud $\pci$, we infer its shape by solving the following optimization problem by gradient descent:
+% \begin{align}
+%     v^* = \argmin_{v \in \mathbb{R}^D} d(\pcc + W v, \pci).
+% \end{align}
+% Finally, the term $Wv$ can be replaced by a more expressive model, e.g. an auto-encoder \cite{thompson21shapebased} or possibly a diffusion model \cite{nichol22pointe}. We use PCA for simplicity.
+
+
+\section{Interaction Warping}
+
+This section describes \textbf{Interaction Warping (IW)}, our proposed imitation method. Prior to using the method, we assume that we have first trained a set of category-level generative object models of the form described in Section~]\ref{sec:background}. Then, given a single demonstration of a desired manipulation activity, we detect the objects in the demonstration using off the shelf models. For each object in the demonstration that matches a previously trained generative model (Section~\ref{sec:background}), we fit the model to the object in order to get the pose and completed shape of the object. Next, for each grasp, place, or via point, we project the relative poses of the objects involved onto the canonical models for the relevant object categories. This is accomplished by identifying \emph{interaction points} on pairs of objects that interact and corresponding those points with the matching points in the canonical object models. Finally, we reproduce the demonstration in a new scene with novel in-category object instances by projecting the demonstrated interaction points onto the completed object instances in the new scene.
+
 
 \section{Interaction Warping (IW)}
-
-% \begin{figure}
-%     \centering
-%     \includegraphics[width=\textwidth]{figures/method_figure2.pdf}
-%     \caption{Main method figure. I'll fill it in with real-world images later. \rob{I'm thinking instead of a fig that focuses on warping of relative pose between pair of objects. Maybe visualize mug-on-tree (or bottle in box) for diff warped configs, similar to what you do in fig 2 for objects.}}
-%     \label{fig:method}
-% \end{figure}
 
 In this section, we propose \textbf{Interaction Warping (IW)}, a method for imitation learning using shape warping. IW is robust to shape variation between object instances and sample-efficient in terms of both the number of example objects and the number of demonstrations of  a task. Our method has three main components that make it work on a real-world robot: (1) hybrid mesh and point cloud warping to enable the detection of contact points and collision avoidance during motion planning, (2) joint estimation of object shape and pose in 3D using gradient descent and (3) warping of interactions between objects (including the robot gripper) to enable the transfer of 3D robot actions across object instances.
 
@@ -230,7 +281,7 @@ We pre-train IW with a small number of example objects (ten objects from ShapeNe
     \pcx{v} = \pcc + W v. \tag{3}
 \end{align}
 
-For real-world applications, we found it important to have access to the surface of the object shape parameterized by $v$ in addition to its point cloud. If the point cloud of $\pcx{v}$ is dense enough, it is possible to use surface completion methods. But, we found a simpler approach to work well: we construct the canonical point cloud $\pcc$ as a concatenation of the actual vertices of object $C$ and points sampled on its surface. By having actual vertices in $\pcc$, we ensure that they can be warped to create a new mesh. We add the surface samples to make the point cloud more uniform -- meshes modeled by people tend to have highly non-uniform distributions of vertices.
+For real-world applications \evdp{can you be more explicit about what applications you're referring to?}, we found it important to have access to the surface of the object shape parameterized by $v$ in addition to its point cloud. If the point cloud of $\pcx{v}$ is dense enough, it is possible to use surface completion methods. But, we found a simpler approach to work well: we construct the canonical point cloud $\pcc$ as a concatenation of the actual vertices of object $C$ and points sampled on its surface. By having actual vertices in $\pcc$, we ensure that they can be warped to create a new mesh. We add the surface samples to make the point cloud more uniform -- meshes modeled by people tend to have highly non-uniform distributions of vertices.
 
 Finally, we create a new mesh by extracting the warped vertices from $\pcx{v}$ and keeping the original faces (represented as triplets of vertex indices) from object $C$. This way of warping vertices can possibly break the mesh (e.g. by intersecting or inverting its faces), but we did not find it to be a problem when performing collision checking for a reasonable range of real-world objects.
 
@@ -255,7 +306,7 @@ and define a loss function
 \end{align}
 The first term in the loss function is a one-sided Chamfer distance between the decoded and the observed point clouds. The second term is a regularizer on the size of the decoded object. Our implementation regularizes the object to fit into the smallest possible ball. Other options are possible, such as directly regularizing $v$ and $s$, regularizing the $L_2$ norm of $\mathrm{dec}$, etc. The main reason for the regularizer is to prevent large predicted meshes in real-world experiments, which might make it impossible to find collision-free motion plans.
 
-We minimize $\mathcal{L}$ with respect to $v, s, t$ and $r$ using the Adam optimizer \cite{kingma17adam} with learning rate $10^{-2}$ for 100 steps. We set $\beta=10^{-2}$. We found the optimization process is prone to getting stuck in local minima; e.g., instead of aligning the handle of the decoded mug with the observed point cloud, the optimizer might change the shape of the decoded mug to hide its handle. Hence, we restart the process with many different random initial rotations and pick the solution with the lowest loss function. Further, we randomly subsample the point clouds at each gradient descent step -- this allows us to run 12 random starting orientations at once on a consumer GPU.
+We minimize $\mathcal{L}$ with respect to $v, s, t$ and $r$ using the Adam optimizer \cite{kingma17adam} with learning rate $10^{-2}$ for 100 steps. We set $\beta=10^{-2}$. We found the optimization process is prone to getting stuck in local minima; e.g., instead of aligning the handle of the decoded mug with the observed point cloud, the optimizer might change the shape of the decoded mug to hide its handle. Hence, we restart the process with many different random initial rotations and pick the solution with the lowest loss function. Further, we randomly subsample the point clouds at each gradient descent step -- this allows us to run 12 random starting orientations at once on a consumer GPU \evdp{which one?}.
 
 As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh as described in Section \ref{sec:methods:mesh}) and its pose represented by $t$ and $R$.
 
@@ -293,9 +344,9 @@ As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh a
 
 Our key contribution is a generalizable representation of 3D robotic actions with respect to manipulated objects. We propose an action abstraction we call \textit{interaction points}: pairs of these points capture the interaction of either a robot and an object, or a pair of objects. Crucially, we are able to warp interaction points to novel objects without any additional learning. We describe the cloning of grasping and relational object placement, but interaction points could be also used in, e.g., pushing or tossing. We use a single demonstration of a grasp or a placement to identify the interaction points.
 
-\textbf{Grasping:} Assume that we have a single demonstration of grasping an object. We have inferred object shape $v$ and pose $T$ (Section X). We also have our reconstructed and transformed point cloud $\pcx{v}$, object mesh $\mathrm{obj}^{(v)}$ and a gripper mesh $\mathrm{grip}$. We find $N$ pairs of points $(p^{(v)}_j, p^{(G)}_j)$ that define the contacts between the object and the gripper. We use \texttt{pybullet} collision checking for this purpose. Each $p^{(v)}_j$ is a point in $\pcx{v}$ with index $i_j$.
+\textbf{Grasping:} Assume that we have a single demonstration of grasping an object. We have inferred object shape $v$ and pose $T$ (Section X \evdp{section number missing}). We also have our reconstructed and transformed point cloud $\pcx{v}$, object mesh $\mathrm{obj}^{(v)}$ and a gripper mesh $\mathrm{grip}$. We find $N$ pairs of points $(p^{(v)}_j, p^{(G)}_j)$ that define the contacts between the object and the gripper. We use \texttt{pybullet} collision checking for this purpose. Each $p^{(v)}_j$ is a point in $\pcx{v}$ with index $i_j$.
 
-Given a new object to be grasped with shape $v'$, pose $T'$ and a point cloud $\pcx{v'}$, we create new pairs of points $(p^{(v')}_i, p^{(G)}_i)$. The points $p^{(v)}_i$ and $p^{(v')}_i$ are related by the following equation:
+Given a new object to be grasped with shape $v'$, pose $T'$ and a point cloud $\pcx{v'}$, we create new pairs of points $(p^{(v')}_i, p^{(G)}_i)$. The points $p^{(v)}_i$ and $p^{(v')}_i$ \evdp{they're not in the below equation} are related by the following equation:
 \begin{align}
     p^{(v')}_j T'^{-1} = \underbrace{p^{(v)}_j T^{-1}}_{\text{(1)}} + \underbrace{[W(v' - v)]_{i_j}}_{\text{(2)}} \label{eq:contact_point_warping}.
 \end{align}
@@ -306,13 +357,13 @@ We compute the target pose of the robot gripper as the optimal transform $T_{\te
     \mathcal{L}(T) = \sum_{j=1}^N \norm{ p^{(v')}_j - T p^{(G)}_j }_2^2. \label{eq:coordinate_transform}
 \end{align}
 
-\textbf{Relational object placement:} We consider tasks where object 1 should be placed in a specific configuration relative to object 2. The placement can be both final (e.g. mug on mug-tree) on only a waypoint in a task (e.g. brush sliding over a canvas). Given a demonstration, we infer the pose $T_1, T_2$ and shape $v_1, v_2$ of both objects as well as their reconstructed and transformed point clouds $\pcx{v_1}, \pcx{v_2}$. We find all pairs of nearby points $(p^{(v_1)}_j \in \pcx{v_1}, p^{(v_2)}_j \in \pcx{v_2})$ such that $\norm{p^{(v_1)}_j - p^{(v_2)}_j} \leq \delta$. This step will usually return thousands of points and we find a subset of size 100 using farthest point sampling \cite{eldar94farthest} to get a representative sample. We use nearby points as a strict generalization of contact points: some demonstrations of a task can involve placing an object free of contact and letting it fall in place.
+\textbf{Relational object placement:} We consider tasks where object 1 should be placed in a specific configuration relative to object 2. The placement can be both final (e.g. mug on mug-tree) or only a waypoint in a task (e.g. brush sliding over a canvas). Given a demonstration, we infer the pose $T_1, T_2$ and shape $v_1, v_2$ of both objects as well as their reconstructed and transformed point clouds $\pcx{v_1}, \pcx{v_2}$. We find all pairs of nearby points $(p^{(v_1)}_j \in \pcx{v_1}, p^{(v_2)}_j \in \pcx{v_2})$ such that $\norm{p^{(v_1)}_j - p^{(v_2)}_j} \leq \delta$. This step will usually return thousands of points and we find a subset of size 100 using farthest point sampling \cite{eldar94farthest} to get a representative sample. We use nearby points as a strict generalization of contact points: some demonstrations of a task can involve placing an object free of contact and letting it fall in place.
 
 Since $p^{(v_1)}_j$ and $p^{(v_2)}_j$ are not necessarily in contact, we cannot simply compute the optimal transform that aligns the pairs of points. We solve this problem by creating virtual points in $\pcx{v_1}$ that are in contact with points $p^{(v_2)}_j$. Each virtual point is defined as
 \begin{align}
     p^{(v_1)}_{V,j} = \frac{1}{L} \sum_{k=1}^L \pcx{v_1}_{i_k} + \underbrace{(p^{(v_2)}_j - \pcx{v_1}_{i_k})}_{\Delta_k} = p^{(v_2)}_j,
 \end{align}
-where $i_1, i_2$, ..., $i_L$ are indices of the k-nearest-neighbors to point $p^{(v_2)}_j$ in $\pcx{v_1}$. Figure \ref{fig:contacts} (b) and (c) shows an example of this process: we create a virtual points in the middle of the handle of a mug, which is in contact with the branch of a mug-tree. Note that these points are found automatically and we do not require any task specific information.
+where $i_1, i_2$, ..., $i_L$ are indices of the k-nearest-neighbors to point $p^{(v_2)}_j$ in $\pcx{v_1}$. Figure \ref{fig:contacts} (b) and (c) shows an example of this process: we create a virtual point in the middle of the handle of a mug, which is in contact with the branch of a mug-tree. Note that these points are found automatically and we do not require any task specific information.
 
 We now have pairs of points $(p^{(v_1)}_{V,j} \in \pcx{v_1}, p^{(v_2)}_j \in \pcx{v_2})$ that are in contact. Given a novel object 1 of shape $v'_1$, we can warp the virtual points as follows:
 \begin{align}
@@ -408,11 +459,11 @@ We evaluate both the perception and imitation learning capabilities of Interacti
          \textbf{Method} & \# Demos & Meshes & Upright & Arbitrary & Upright & Arbitrary & Upright & Arbitrary \\
          \midrule
          R-NDF & 1 & 200 & 60.0 & 51.0 & 69.0 & 68.0 & 19.0 & 8.0 \\
-         TAX-Pose & 1 & 200 & 61.0 & 41.0 & 16.0 & 9.0 & - & - \\
+         TAX-Pose & 1 & 200 & 61.0 & 41.0 & 16.0 & 9.0 & 4.0 & 1.0 \\
          \textbf{IW} & 1 & 10 & \textbf{86.0} & \textbf{83.0} & \textbf{82.0} & \textbf{84.0} & \textbf{62.0} & \textbf{60.0} \\
          \midrule
          R-NDF & 5 & 200 & 88.0 & \textbf{89.0} & 53.0 & 46.0 & 78.0 & 47.0 \\
-         TAX-Pose & 5 & 200 & 82.0 & 51.0 & 29.0 & 14.0 & - & - \\
+         TAX-Pose & 5 & 200 & 82.0 & 51.0 & 29.0 & 14.0 & 6.0 & 2.0 \\
          \textbf{IW} & 5 & 10 & \textbf{90.0} & 87.0 & \textbf{75.0} & \textbf{77.0} & \textbf{79.0} & \textbf{79.0} \\
          \midrule
          R-NDF \cite{simeonov22se} & 10 & 200 & 71.0 & 70.0 & 69.0 & 60.0 & \textbf{81.0} & 59.0 \\
@@ -551,6 +602,8 @@ We introduced Interaction Warping, a method for one-shot learning of 3D robotic 
 \subsection{Point Cloud Sampling}
 \label{appendix:method:sampling}
 
+
+
 \subsection{Canonical Object Selection}
 \label{appendix:method:canonical}
 
@@ -561,13 +614,22 @@ Among the $K$ example objects, we would like to find the one that is the easiest
 \caption{Exhaustive Canonical Object Selection}\label{alg:canon_select_1} 
 
 \begin{flushleft}
-    \hspace*{\algorithmicindent} \textbf{Input:} Meshes of $K$ example object instances $\{ \mathrm{obj}_1, \mathrm{obj}_2, ..., \mathrm{obj}_K \}$. \\
-    \hspace*{\algorithmicindent} \textbf{Output:} Canonical object $\mathrm{obj}^C$, $\mathrm{PCA}$ mapping latent vectors to warps of $\mathrm{obj}^C$. \\
+    \hspace*{\algorithmicindent} \textbf{Input:} Point clouds of $K$ training objects $\langle \pcx{1}, \pcx{2}, ..., \pcx{K} \rangle$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Index of the canonical object. \\
 \end{flushleft}
 
 \begin{algorithmic}[1]
 
-    \State x.
+    \For {$i = 1$ \textbf{to} $K$}
+        \For {$j = 1$ \textbf{to} $K$, $j \neq i$}
+            \State $\wij = \mathrm{CPD}(\pci, \pcj)$ \Comment{\textcolor{blue}{Warp point cloud $i$ to point cloud $j$.}}
+            \State $C_{i,j} = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{\pcj_k - (\pci + \wij)_l}_2^2$
+        \EndFor
+    \EndFor
+    \For {$i = 1$ \textbf{to} $K$}
+        \State $C_i = \sum_{j = 1, j \neq i}^K C_{i,j}$ \Comment{\textcolor{blue}{Cumulative cost of point cloud $i$ warps.}}
+    \EndFor
+    \State \Return $\argmin_{i=1}^K C_i$ \Comment{\textcolor{blue}{Pick point cloud that is the easiest to warp.}}
 
 \end{algorithmic}
 
@@ -575,17 +637,24 @@ Among the $K$ example objects, we would like to find the one that is the easiest
 
 \begin{algorithm}[H]
 
-\caption{Approximate Canonical Object Selection}\label{alg:canon_select_2} 
+\caption{Approximate Canonical Object Selection \cite{thompson21shapebased}}\label{alg:canon_select_2} 
 
 \begin{flushleft}
-    \hspace*{\algorithmicindent} \textbf{Input:} Meshes of $K$ example object instances $\{ \mathrm{obj}_1, \mathrm{obj}_2, ..., \mathrm{obj}_K \}$. \\
-    \hspace*{\algorithmicindent} \textbf{Output:} Canonical object $\mathrm{obj}^C$, $\mathrm{PCA}$ mapping latent vectors to warps of $\mathrm{obj}^C$. \\
+    \hspace*{\algorithmicindent} \textbf{Input:} Point clouds of $K$ training objects $\langle \pcx{1}, \pcx{2}, ..., \pcx{K} \rangle$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Index of the canonical object. \\
 \end{flushleft}
 
 \begin{algorithmic}[1]
 
-    \State x.
-
+    \For {$i = 1$ \textbf{to} $K$}
+        \For {$j = 1$ \textbf{to} $K$, $j \neq i$}
+            \State $C_{i,j} = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{\pcj_k - \pci_l}_2^2$
+        \EndFor
+    \EndFor
+    \For {$i = 1$ \textbf{to} $K$}
+        \State $C_i = \sum_{j = 1, j \neq i}^K C_{i,j}$
+    \EndFor
+    \State \Return $\argmin_{i=1}^K C_i$
 \end{algorithmic}
 
 \end{algorithm}
