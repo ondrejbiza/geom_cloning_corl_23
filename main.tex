@@ -58,6 +58,45 @@
 \newcommand{\bwci}{\bwxy{C}{i}}
 \newcommand{\vci}{\vxy{C}{i}}
 
+% python code
+\usepackage{tcolorbox}
+\tcbuselibrary{minted,breakable,xparse,skins}
+\definecolor{bg}{gray}{0.95}
+\DeclareTCBListing{mintedbox}{O{}m!O{}}{%
+  breakable=true,
+  listing engine=minted,
+  listing only,
+  minted language=#2,
+  minted style=default,
+  minted options={%
+    linenos,
+    gobble=0,
+    breaklines=true,
+    breakafter=,,
+    fontsize=\small,
+    numbersep=8pt,
+    #1},
+  boxsep=0pt,
+  left skip=0pt,
+  right skip=0pt,
+  left=25pt,
+  right=0pt,
+  top=3pt,
+  bottom=3pt,
+  arc=5pt,
+  leftrule=0pt,
+  rightrule=0pt,
+  bottomrule=2pt,
+  toprule=2pt,
+  colback=bg,
+  colframe=orange!70,
+  enhanced,
+  overlay={%
+    \begin{tcbclipinterior}
+    \fill[orange!20!white] (frame.south west) rectangle ([xshift=20pt]frame.north west);
+    \end{tcbclipinterior}},
+  #3}
+
 % ### custom packages end ###
 
 % \title{SA-Warp: Simple $\mathrm{SE}(3)$ Object Re-arrangement \\via Shape and Action Warping}
@@ -595,6 +634,8 @@ We introduced Interaction Warping, a method for one-shot learning of 3D robotic 
 \section{Method Details}
 \label{appendix:method}
 
+Algorithms \ref{alg:warp_learn} and \ref{alg:warp_infer} describe our warp learning and inference.
+
 \input{latex/algorithm_warp_learn}
 
 \input{latex/algorithm_warp_infer} %\evdp{There is a lot of information here, is it possible to present the main steps here and leave the details for the appendix?}
@@ -602,68 +643,30 @@ We introduced Interaction Warping, a method for one-shot learning of 3D robotic 
 \subsection{Point Cloud Sampling}
 \label{appendix:method:sampling}
 
-
+We use \texttt{trimesh}\footnote{https://github.com/mikedh/trimesh} to sample the surface of object meshes. The function \texttt{trimesh.sample.sample\_surface\_even} samples a specified number of points and then rejects points that are too close together. We sample 2k points for small point clouds ($\mathrm{SampleS}$) and 10k point for large point clouds ($\mathrm{SampleL}$).
 
 \subsection{Canonical Object Selection}
 \label{appendix:method:canonical}
 
-Among the $K$ example objects, we would like to find the one that is the easiest to warp to the other objects. For example, if we have ten examples of mugs, but only one mug has a square handle, we should not choose it as it might be difficult to warp it to conform to the round handles of the other nine mugs.
+Among the $K$ example objects, we would like to find the one that is the easiest to warp to the other objects. For example, if we have ten examples of mugs, but only one mug has a square handle, we should not choose it as it might be difficult to warp it to conform to the round handles of the other nine mugs. We use Algorithm \ref{alg:canon_select_1}, which computes $K * K-1$ warps and picks the object that warps to the other $K-1$ objects with the lowest Chamfer distance. We also note an alternative and computationally cheaper algorithm from \citet{thompson21shapebased}, Algorithm \ref{alg:canon_select_2}. This algorithm simply finds the object that is the most similar to the other $K-1$ objects without any warping.
 
-\begin{algorithm}[H]
+\input{latex/algorithm_exhaustive_canon_selection}
 
-\caption{Exhaustive Canonical Object Selection}\label{alg:canon_select_1} 
+\input{latex/algorithm_approx_canon_selection}
 
-\begin{flushleft}
-    \hspace*{\algorithmicindent} \textbf{Input:} Point clouds of $K$ training objects $\langle \pcx{1}, \pcx{2}, ..., \pcx{K} \rangle$. \\
-    \hspace*{\algorithmicindent} \textbf{Output:} Index of the canonical object. \\
-\end{flushleft}
+\subsection{Gram-Schmidt orthogonalization}
 
-\begin{algorithmic}[1]
+We turn two vectors into a rotation matrix using Algorithm \ref{alg:gram_schmidt} \cite{park22learning}.
 
-    \For {$i = 1$ \textbf{to} $K$}
-        \For {$j = 1$ \textbf{to} $K$, $j \neq i$}
-            \State $\wij = \mathrm{CPD}(\pci, \pcj)$ \Comment{\textcolor{blue}{Warp point cloud $i$ to point cloud $j$.}}
-            \State $C_{i,j} = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{\pcj_k - (\pci + \wij)_l}_2^2$
-        \EndFor
-    \EndFor
-    \For {$i = 1$ \textbf{to} $K$}
-        \State $C_i = \sum_{j = 1, j \neq i}^K C_{i,j}$ \Comment{\textcolor{blue}{Cumulative cost of point cloud $i$ warps.}}
-    \EndFor
-    \State \Return $\argmin_{i=1}^K C_i$ \Comment{\textcolor{blue}{Pick point cloud that is the easiest to warp.}}
-
-\end{algorithmic}
-
-\end{algorithm}
-
-\begin{algorithm}[H]
-
-\caption{Approximate Canonical Object Selection \cite{thompson21shapebased}}\label{alg:canon_select_2} 
-
-\begin{flushleft}
-    \hspace*{\algorithmicindent} \textbf{Input:} Point clouds of $K$ training objects $\langle \pcx{1}, \pcx{2}, ..., \pcx{K} \rangle$. \\
-    \hspace*{\algorithmicindent} \textbf{Output:} Index of the canonical object. \\
-\end{flushleft}
-
-\begin{algorithmic}[1]
-
-    \For {$i = 1$ \textbf{to} $K$}
-        \For {$j = 1$ \textbf{to} $K$, $j \neq i$}
-            \State $C_{i,j} = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{\pcj_k - \pci_l}_2^2$
-        \EndFor
-    \EndFor
-    \For {$i = 1$ \textbf{to} $K$}
-        \State $C_i = \sum_{j = 1, j \neq i}^K C_{i,j}$
-    \EndFor
-    \State \Return $\argmin_{i=1}^K C_i$
-\end{algorithmic}
-
-\end{algorithm}
+\input{latex/algorithm_gram_schmidt}
 
 \section{Experiment Details}
 \label{appendix:experiment}
 
 \subsection{Object re-arrangement on a physical robot}
 \label{appendix:experiment:rearrangement}
+
+We use a UR5 robotic arm with a Robotiq gripper. We capture the point cloud using three RealSense D455 camera with extrinsics calibrated to the robot. For motion planning, we use MoveIt with ROS1. To segment the objects, we use DBSCAN to cluster the point clouds and simple heuristics (e.g. height, width) to detect the object class.
 
 \begin{figure}[]
     \centering
@@ -701,7 +704,27 @@ Previously, we experimented with Mask R-CNN \cite{he17mask} and Mask2Former \cit
 % Despite some limitations, our project provided valuable insights into the challenges of object detection and 3D semantic segmentation, emphasizing the importance of a more appropriate dataset and addressing the limitations of the PointNet network. Our efforts in combining DETIC and SAM demonstrated the potential of such an approach for future research in the field.
 % \ob{Kishore -- RGBD to segmented point clouds to grasp candidates}
 
-\section{Additional Experiments}
+\section{Additional Results}
+
+\textbf{Training and inference times:} We measure the training and inference times of TAX-Pose, R-NDF and IW (Table \ref{tab:time}). Both R-NDF and IW take tens of seconds to either perceive the environment or to predict an action. This is because both of these methods use gradient descent with many random restarts for inference. On the other hand, TAX-Pose performs inference in a fraction of second but requires around 16 hours of training for each task. Neither R-NDF nor IW require task-specific training. We do not include the time it takes to perform pre-training for each class of objects, which is required by all three methods, because we used checkpoints provided by the authors of TAX-Pose and R-NDF.
+
+\textbf{Additional real-world grasp predictions:} We include additional examples of real-world object segmentation, mesh prediction and grasp prediction in Figure \ref{fig:real2sim2real_part2}.
+
+\begin{table}
+    \centering
+    \begin{tabular}{lcccc}
+        \toprule
+        Method & Training & Perception & Grasp prediction & Placement prediction \\
+        \midrule
+        TAX-Pose \cite{pan22taxpose} & 16.5 $\pm$ 1.3 h & - & 0.02 $\pm$ 0.01 s & 0.02 $\pm$ 0.01 s\\
+        R-NDF \cite{simeonov22se} & - & - & 21.4 $\pm$ 0.5 s & 42.5 $\pm$ 1.8 s \\
+        IW (Ours) & - & 29.6 $\pm$ 0.2 s & 0.01 $\pm$ 0.01 s & 0.003 $\pm$ 0.004 s \\
+        \bottomrule
+    \end{tabular}
+    \vspace{0.5em}
+    \caption{Approximate training and inference times for our method and baselines measured over five trials. R-NDF and IW do not have an explicit training phase, as they use demonstrations nonparametrically during inference. Only IW has a perception step that is separate from the action prediction step. We do not include the time it takes to capture a point cloud or to move the robot. Training and inference times were measured on a system with a single NVIDIA RTX 2080Ti GPU and an Intel i7-9700K CPU.}
+    \label{tab:time}
+\end{table}
 
 \begin{figure}[]
     \centering

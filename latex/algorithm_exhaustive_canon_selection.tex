@@ -1,0 +1,25 @@
+\begin{algorithm}[H]
+
+\caption{Exhaustive Canonical Object Selection}\label{alg:canon_select_1} 
+
+\begin{flushleft}
+    \hspace*{\algorithmicindent} \textbf{Input:} Point clouds of $K$ training objects $\langle \pcx{1}, \pcx{2}, ..., \pcx{K} \rangle$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Index of the canonical object. \\
+\end{flushleft}
+
+\begin{algorithmic}[1]
+
+    \For {$i = 1$ \textbf{to} $K$}
+        \For {$j = 1$ \textbf{to} $K$, $j \neq i$}
+            \State $\wij = \mathrm{CPD}(\pci, \pcj)$ \Comment{\textcolor{blue}{Warp point cloud $i$ to point cloud $j$.}}
+            \State $C_{i,j} = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{\pcj_k - (\pci + \wij)_l}_2^2$
+        \EndFor
+    \EndFor
+    \For {$i = 1$ \textbf{to} $K$}
+        \State $C_i = \sum_{j = 1, j \neq i}^K C_{i,j}$ \Comment{\textcolor{blue}{Cumulative cost of point cloud $i$ warps.}}
+    \EndFor
+    \State \Return $\argmin_{i=1}^K C_i$ \Comment{\textcolor{blue}{Pick point cloud that is the easiest to warp.}}
+
+\end{algorithmic}
+
+\end{algorithm}

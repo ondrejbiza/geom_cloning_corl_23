@@ -1,0 +1,19 @@
+\begin{algorithm}[H]
+
+\caption{Gram-Schmidt Orthogonalization}\label{alg:gram_schmidt} 
+
+\begin{flushleft}
+    \hspace*{\algorithmicindent} \textbf{Input:} 3D vectors $u$ and $v$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Rotation matrix. \\
+\end{flushleft}
+
+\begin{algorithmic}[1]
+
+    \State $u' = u / \norm{u}$
+    \State $v' = \frac{v - (u' \cdot v) u'}{\norm{v - (u' \cdot v) u'}} $
+    \State $w' = u' \times v'$
+    \State \Return $\mathrm{Stack}(u', v', w')$
+
+\end{algorithmic}
+
+\end{algorithm}

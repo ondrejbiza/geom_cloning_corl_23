@@ -1,0 +1,23 @@
+\begin{algorithm}[H]
+
+\caption{Approximate Canonical Object Selection \cite{thompson21shapebased}}\label{alg:canon_select_2} 
+
+\begin{flushleft}
+    \hspace*{\algorithmicindent} \textbf{Input:} Point clouds of $K$ training objects $\langle \pcx{1}, \pcx{2}, ..., \pcx{K} \rangle$. \\
+    \hspace*{\algorithmicindent} \textbf{Output:} Index of the canonical object. \\
+\end{flushleft}
+
+\begin{algorithmic}[1]
+
+    \For {$i = 1$ \textbf{to} $K$}
+        \For {$j = 1$ \textbf{to} $K$, $j \neq i$}
+            \State $C_{i,j} = \frac{1}{|\pcj|} \sum_{k=1}^{|\pcj|} \min_{l=1}^{|\pci|} \norm{\pcj_k - \pci_l}_2^2$
+        \EndFor
+    \EndFor
+    \For {$i = 1$ \textbf{to} $K$}
+        \State $C_i = \sum_{j = 1, j \neq i}^K C_{i,j}$
+    \EndFor
+    \State \Return $\argmin_{i=1}^K C_i$
+\end{algorithmic}
+
+\end{algorithm}
