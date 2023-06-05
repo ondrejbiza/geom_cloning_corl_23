@@ -107,7 +107,9 @@
 
 % \title{One-Shot Imitation Learning via Shape Warping}
 
-\title{Imitation Learning via Simple Linear Shape Warping}
+% \title{Imitation Learning via Simple Linear Shape Warping}
+% \title{A Simple Method for Imitation Learning via Shape Warping}
+\title{One-shot Imitation Learning via Shape Warping}
 
 % \title{Keypoint Matching via Linear Shape Warping}
 
@@ -157,11 +159,21 @@ Imitation learning of robot policies from few demonstrations is crucial in open-
 \section{Introduction}
 
 
+% \begin{wrapfigure}[17]{r}{0.45\textwidth}
+% \vspace{-0.5cm}
+%   \begin{center}
+%     \includegraphics[width=0.45\textwidth]{figures/mugs1.png} \\
+%     \includegraphics[width=0.45\textwidth]{figures/mugs2.png}
+%     \end{center}
+% \vspace{-0.2cm}
+% \caption{The Mug Tree task.}
+% \label{fig:mugontree}
+% \end{wrapfigure}
+
 \begin{wrapfigure}[17]{r}{0.45\textwidth}
 \vspace{-0.5cm}
   \begin{center}
-    \includegraphics[width=0.45\textwidth]{figures/mugs1.png} \\
-    \includegraphics[width=0.45\textwidth]{figures/mugs2.png}
+    \includegraphics[width=0.45\textwidth]{figures/intro_1.pdf} \\
     \end{center}
 \vspace{-0.2cm}
 \caption{The Mug Tree task.}
@@ -176,8 +188,6 @@ To be successful in this setting, it is generally necessary to bias the model si
 % More recent methods learn descriptors as the byproduct of an implicit object model~\cite{simeonov2022neural}. Other methods learn a point embedding using a constrastive loss on a DGCNN~\cite{wang2019dynamic} model~\cite{pan2022tax}. 
 
 % This generally happens during a pretraining step where category-level object descriptor models are trained using a large number (generally hundreds) of in-category object instances for each category, e.g. hundreds of different instances of mugs. 
-
-
 
 % The common thread here is that all of these methods involve a heavyweight category level object model that is trained on hundreds of objects to produce keypoint descriptors.
 
@@ -237,23 +247,15 @@ Finally, point cloud warping has been used to manipulate deformable objects \cit
 
 \paragraph{Coherent Point Drift (CPD)}
 
-Given two point clouds, $\pci \in \mathbb{R}^{3 \times n}$ and $\pcj \in \mathbb{R}^{3 \times m}$, Coherent Point Drift (CPD) finds a displacement $\wij  \in \mathbb{R}^{3 \times n}$ of the points $\pci$ that brings them as close as possible (in an L2 sense) to the points $\pcj$~\cite{myronenko2010point}. In particular, PCD finds the displacement $\wij$ that minimizes the one-sided Chamfer distance:
+Given two point clouds, $\pci \in \mathbb{R}^{n \times 3}$ and $\pcj \in \mathbb{R}^{m \times 3}$, Coherent Point Drift (CPD) finds a displacement $\wij  \in \mathbb{R}^{n \times 3}$ of the points $\pci$ that brings them as close as possible (in an $L_2$ sense) to the points $\pcj$~\cite{myronenko2010point}. CPD is a non-rigid point cloud registration method -- each point in $\pci$ can be translated independently. CPD minimizes the following cost function,
 \begin{align}
-    d\left( \pci + \wij, \pcj \right) = \frac{1}{m} \sum_{k=1}^{m} \min_l \norm{ \pci_l + W_{i \rightarrow j, l} - \pcj_k }_2,
-    \label{eqn:chamfer}
+    J(\wij) = - \sum_{k=1}^{m} \log \sum_{l=1}^{n} \exp \left( \frac{1}{2 \sigma^2} \norm{\pci_l + (W_{i \rightarrow j})_l - \pcj_k } \right) + \frac{\alpha}{2} \phi(\wij),
 \end{align}
-where $\pcj_k$ denotes the $k^{th}$ column of $\pcj$, $\pci_l$ denotes the $l^{th}$ column of $\pci$, and $W_{i \rightarrow j, l}$ denotes the $l^{th}$ column of $\wij$. Note that $\pci$ and $\pcj$ do not need to have the same number of points, i.e. in general $n \neq m$. 
-
-In order to minimize Equation~\ref{eqn:chamfer} with respect to $\wij$, CPD minimizes the following smooth approximation,
-\begin{align}
-    J(\wij) = - \sum_{k=1}^{m} \log \sum_{l=1}^{n} \exp \left( \frac{1}{2 \sigma^2} \norm{\pci_l + W_{i \rightarrow j, l} - \pcj_k } \right) + \frac{\alpha}{2} \phi(\wij),
-\end{align}
-using expectation maximization over point correspondences and distances (see~\cite{myronenko2010point} for details). This can be viewed as fitting a Gaussian Mixture Model of $n$ components to the data $\pcj$. Here, $\phi(\wij)$ is a regularizer that penalizes large differences between adjacent columns in the matrix. This incentivizes the optimization to not assign arbitrary correspondences between points in $\pci$ and $\pcj$.
-
+using expectation maximization over point correspondences and distances (see~\cite{myronenko2010point} for details). This can be viewed as fitting a Gaussian Mixture Model of $n$ components to the data $\pcj$. Here, $\phi(\wij)$ is a prior on the point displacements that regularizes nearby points in $\pci$ to move coherently. This incentivizes the optimization to not assign arbitrary correspondences between points in $\pci$ and $\pcj$.
 
 \paragraph{Generative Object Modeling Using CPD}
 
-CPD can be used as part of a linear generative model for in-category object shapes as follows~\cite{rodriguez18transferring}. Assume that we are given a set of point clouds, $\{\pcx{1}, \dots, \pcx{N}\}$, that describe $N$ object instances that all belong to a single category, e.g. a set of point clouds describing different mug instances. Each of these point clouds must be a full point cloud in the sense that it covers the entire object. Select a ``canonical'' object $\pcx{C}, C \in \{1,N\}$ and define a set of displacement matrices $\wxy{C}{i} = \pcx{C} - \pcx{i}, i \in \{1,N\}$. The choice of $C$ is arbitrary, but we choose the $C$ that minimizes the size of the displacement matrices, i.e. that minimizes $\sum_{i} \| \wxy{C}{i} \|_2$. Now, we calculate a low rank approximation of the space of object shape deformations using PCA. For each matrix $\wxy{C}{i} \in \mathbb{R}^{3 \times n}$, let $\bwxy{C}{i} \in \mathbb{R}^{3n \times 1}$ denote the flattened version. We form the $3n \times N$ data matrix $\bar{W}_C = \left[\bwxy{C}{1}, \dots, \bwxy{C}{N}\right]$ and calculate the $d$ dimensional PCA projection matrix $W \in \mathbb{R}^{3n \times d}$. This allows us to approximate novel in-category objects using low dimensional latent vector $v_{novel} \in \mathbb{R}^d$, $\pcx{novel} = \pcc + \textsc{reshape}(W v_{novel})$, where the $\textsc{reshape}$ operator casts back to a $3 \times n$ matrix. This is illustrated in Figure~\ref{fig:latent} where we show shapes generated by varying the first two principle components for the mug object category.
+CPD can be used as part of a generative model for in-category object shapes as follows~\cite{rodriguez18transferring}. Assume that we are given a set of point clouds, $\{\pcx{1}, \dots, \pcx{K}\}$, that describe $K$ object instances that all belong to a single category, e.g. a set of point clouds describing different mug instances. Each of these point clouds must be a full point cloud in the sense that it covers the entire object. Select a ``canonical'' object $\pcx{C}, C \in \{1,2, ..., K\}$ and define a set of displacement matrices $\wxy{C}{i} = \mathrm{CPD}(\pcx{C}, \pcx{i}), i \in \{1, 2, ..., K\}$. The choice of $C$ is arbitrary, but we heuristically choose the $C$ that is the most representative (Appendix \ref{appendix:method:canonical}). Now, we calculate a low rank approximation of the space of object shape deformations using PCA. For each matrix $\wxy{C}{i} \in \mathbb{R}^{n \times 3}$, let $\bwxy{C}{i} \in \mathbb{R}^{3n \times 1}$ denote the flattened version. We form the $3n \times N$ data matrix $\bar{W}_C = \left[\bwxy{C}{1}, \dots, \bwxy{C}{K}\right]$ and calculate the $d$ dimensional PCA projection matrix $W \in \mathbb{R}^{3n \times d}$. This allows us to approximate novel in-category objects using low dimensional latent vector $v_{\mathrm{novel}} \in \mathbb{R}^d$, $\pcx{\mathrm{novel}} = \pcc + \mathrm{Reshape}(W v_{\mathrm{novel}})$, where the $\mathrm{Reshape}$ operator casts back to a $n \times 3$ matrix. This is illustrated in Figure~\ref{fig:latent} where we show shapes generated by varying the first two principle components for the mug object category.
 
 % Finally, we use PCA to solve for the matrix $W \in \mathbb{R}^{d \times n}$ that approximates $\wxy{C}{i} \approx \vxy{C}{i} W$ where $\vxy{C}{i} \in \mathbb{R}^{3 \times d}$ is a low dimensional representation ($d \ll n$) of $\wxy{C}{i}$. This allows us to approximate novel in-category objects as low dimensional matrix $\vxy{C}{novel}$: $\pcx{novel} = \pcc + \vxy{C}{novel} W$. This is illustrated in Figure~\ref{fig:latent} where we show shapes generated by varying the first two principle components for the mug object category.
 
@@ -261,15 +263,17 @@ CPD can be used as part of a linear generative model for in-category object shap
 
 In practice, we want to be able to approximate complete point clouds for objects for which we only have a partial view~\cite{thompson21shapebased}. This can be accomplished using the generative model by solving for 
 \begin{align}
-    v^* = \argmin_{v \in \mathbb{R}^{d}} d(\pcc + \textsc{reshape}(Wv), \pcx{partial})
+    v^* = \argmin_{v \in \mathbb{R}^{d}} \mathcal{D}(\pcc + \mathrm{Reshape}(Wv), \pcx{\mathrm{partial}})
 \end{align}
-using gradient descent on $v$. Essentially, we are solving for the latent vector that gives us a reconstruction closest to the observed points.
-
-
+using gradient descent on $v$. Essentially, we are solving for the latent vector that gives us a reconstruction closest to the observed points. To account for the partial view, \citet{thompson21shapebased} use the one-sided Chamfer distance \cite{barrow77parametric},
+\begin{align}
+    \mathcal{D}\left( \pci, \pcj \right) = \frac{1}{m} \sum_{k=1}^{m} \min_{l \in \{1, ..., n\}} \norm{ \pci_l - \pcj_k }_2.
+    \label{eqn:chamfer}
+\end{align}
+Note that $\pci \in \mathbb{R}^{n \times 3}$ and $\pcj \in \mathbb{R}^{m \times 3}$ do not need to have the same number of points, i.e. in general $n \neq m$. 
+% In order to minimize Equation~\ref{eqn:chamfer} with respect to $\wij$, 
 
 % Finally, the term $Wv$ can be replaced by a more expressive model, e.g. an auto-encoder \cite{thompson21shapebased} or possibly a diffusion model \cite{nichol22pointe}. We use PCA for simplicity.
-
-
 
 % \subsection{asdf}
 
@@ -298,12 +302,10 @@ using gradient descent on $v$. Essentially, we are solving for the latent vector
 
 \section{Interaction Warping}
 
-This section describes \textbf{Interaction Warping (IW)}, our proposed imitation method. Prior to using the method, we assume that we have first trained a set of category-level generative object models of the form described in Section~]\ref{sec:background}. Then, given a single demonstration of a desired manipulation activity, we detect the objects in the demonstration using off the shelf models. For each object in the demonstration that matches a previously trained generative model (Section~\ref{sec:background}), we fit the model to the object in order to get the pose and completed shape of the object. Next, for each grasp, place, or via point, we project the relative poses of the objects involved onto the canonical models for the relevant object categories. This is accomplished by identifying \emph{interaction points} on pairs of objects that interact and corresponding those points with the matching points in the canonical object models. Finally, we reproduce the demonstration in a new scene with novel in-category object instances by projecting the demonstrated interaction points onto the completed object instances in the new scene.
+This section describes \textbf{Interaction Warping (IW)}, our proposed imitation method. Prior to using the method, we assume that we have first trained a set of category-level generative object models of the form described in Section~\ref{sec:background}. Then, given a single demonstration of a desired manipulation activity, we detect the objects in the demonstration using off the shelf models. For each object in the demonstration that matches a previously trained generative model (Section~\ref{sec:background}), we fit the model to the object in order to get the pose and completed shape of the object. Next, for each grasp, place, or way-point, we project the relative poses of the objects involved onto the canonical models for the relevant object categories. This is accomplished by identifying \emph{interaction points} on pairs of objects that interact and corresponding those points with the matching points in the canonical object models. Finally, we reproduce the demonstration in a new scene with novel in-category object instances by projecting the demonstrated interaction points onto the completed object instances in the new scene.
 
-
-\section{Interaction Warping (IW)}
-
-In this section, we propose \textbf{Interaction Warping (IW)}, a method for imitation learning using shape warping. IW is robust to shape variation between object instances and sample-efficient in terms of both the number of example objects and the number of demonstrations of  a task. Our method has three main components that make it work on a real-world robot: (1) hybrid mesh and point cloud warping to enable the detection of contact points and collision avoidance during motion planning, (2) joint estimation of object shape and pose in 3D using gradient descent and (3) warping of interactions between objects (including the robot gripper) to enable the transfer of 3D robot actions across object instances.
+% \section{Interaction Warping (IW)}
+% In this section, we propose \textbf{Interaction Warping (IW)}, a method for imitation learning using shape warping. IW is robust to shape variation between object instances and sample-efficient in terms of both the number of example objects and the number of demonstrations of  a task. Our method has three main components that make it work on a real-world robot: (1) hybrid mesh and point cloud warping to enable the detection of contact points and collision avoidance during motion planning, (2) joint estimation of object shape and pose in 3D using gradient descent and (3) warping of interactions between objects (including the robot gripper) to enable the transfer of 3D robot actions across object instances.
 
 \subsection{Latent Space of Meshes}
 \label{sec:methods:mesh}
@@ -315,12 +317,12 @@ In this section, we propose \textbf{Interaction Warping (IW)}, a method for imit
     \label{fig:latent}
 \end{figure}
 
-We pre-train IW with a small number of example objects (ten objects from ShapeNet \cite{chang15shapenet} in our experiments) for each object class. We assume to have access to object meshes and we sample a point cloud per object using surface sampling. For each class, we select a canonical example $C$ that appears to be the most representative (we describe two possible heuristics in Appendix \ref{appendix:method:canonical}). Then, we apply the method of \cite{rodriguez18transferring} described in Section \ref{sec:background} to learn a latent space of object warps (Figure \ref{fig:latent}). As a result, we can parameterize object shape by a low-dimensional vector $v$:
+We pre-train IW with a small number of example objects (ten objects from ShapeNet \cite{chang15shapenet} in our experiments) for each object class. We assume to have access to object meshes and we sample a point cloud per object using surface sampling. For each class, we select a canonical example $C$ that appears to be the most representative (we describe two possible heuristics in Appendix \ref{appendix:method:canonical}). Then, we apply the method of \cite{rodriguez18transferring} described in Section \ref{sec:background} to learn a latent space of object warps (Figure \ref{fig:latent}). As a result, we can parameterize object shape by a low-dimensional vector $v \in \mathbb{R}^d$ that represents the linear displacements of points in the canonical point cloud $\pcc \in \mathbb{R}^{n \times 3}$,
 \begin{align}
-    \pcx{v} = \pcc + W v. \tag{3}
+    \pcx{v} = \pcc + \mathrm{Reshape}(W v).
 \end{align}
 
-For real-world applications \evdp{can you be more explicit about what applications you're referring to?}, we found it important to have access to the surface of the object shape parameterized by $v$ in addition to its point cloud. If the point cloud of $\pcx{v}$ is dense enough, it is possible to use surface completion methods. But, we found a simpler approach to work well: we construct the canonical point cloud $\pcc$ as a concatenation of the actual vertices of object $C$ and points sampled on its surface. By having actual vertices in $\pcc$, we ensure that they can be warped to create a new mesh. We add the surface samples to make the point cloud more uniform -- meshes modeled by people tend to have highly non-uniform distributions of vertices.
+For motion planning on a physial robot, we found it important to have access to the surface of the object shape parameterized by $v$ in addition to its point cloud. If the point cloud of $\pcx{v}$ is dense enough, it is possible to use surface completion methods. But, we found a simpler approach to work well: we construct the canonical point cloud $\pcc$ as a concatenation of the actual vertices of object $C$ and points sampled on its surface. By having actual vertices in $\pcc$, we ensure that they can be warped to create a new mesh. We add the surface samples to make the point cloud more uniform -- meshes modeled by people tend to have highly non-uniform distributions of vertices.
 
 Finally, we create a new mesh by extracting the warped vertices from $\pcx{v}$ and keeping the original faces (represented as triplets of vertex indices) from object $C$. This way of warping vertices can possibly break the mesh (e.g. by intersecting or inverting its faces), but we did not find it to be a problem when performing collision checking for a reasonable range of real-world objects.
 
@@ -329,23 +331,24 @@ Finally, we create a new mesh by extracting the warped vertices from $\pcx{v}$ a
 
 We observe real-world (or simulated) point cloud $\mathrm{scene\_pcd}$ using one to three RGB-D cameras. The cameras are calibrated to the robot's hand and we fuse their outputs into a single point cloud. We detect each object of interest in $\mathrm{scene\_pcd}$ either using clustering and heuristics (Section \ref{sec:exp:rearrangement}) or using pre-trained RGB-based open-vocabulary object detection and instance segmentation models (Section \ref{sec:exp:wild}).
 
-Using our latent space from Section \ref{sec:methods:mesh}, we aim to recover the pose and the complete mesh of each detected object from its point cloud $\mathrm{pcd}$. First, we use the class of the detected object to select a model from Section \ref{sec:methods:mesh} -- we have one for each class. We center $\mathrm{pcd}$ and initialize the canonical point cloud with the following parameters:
+Using our latent space from Section \ref{sec:methods:mesh}, we aim to recover the pose and the complete mesh of each detected object from its point cloud $\mathrm{pcd}^{\mathrm{(partial)}}$. First, we use the class of the detected object to select a model from Section \ref{sec:methods:mesh} -- we have one for each class. We center $\mathrm{pcd}^{\mathrm{(partial)}}$ and initialize the canonical point cloud with the following parameters:
 \begin{align}
-    v = \begin{pmatrix} 0 & 0 & ... & 0 \end{pmatrix}, s = \begin{pmatrix} 1 & 1 & 1 \end{pmatrix}, t = \begin{pmatrix} 0 & 0 & 0 \end{pmatrix}, r = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix}.
+    v = \underbrace{\begin{pmatrix} 0 & 0 & ... & 0 \end{pmatrix}}_d, s = \begin{pmatrix} 1 & 1 & 1 \end{pmatrix}, t = \begin{pmatrix} 0 & 0 & 0 \end{pmatrix}, r = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix}.
 \end{align}
-The point clouds starts in its canonical form with the latent shape $v$ equal to zero. We set the initial scale $s$ to one, translation $t$ to zero and rotation $r$ to a unit rotation matrix. We use the Gram-Schmidt orthogonalization process to turn the six entries in $r$ into a proper 3D rotation matrix $R$. This method has been shown to enable stable learning of rotation matrices \cite{falorsi18explorations, park22learning}.
+The point clouds starts in its canonical form with the latent shape $v$ equal to zero. We set the initial scale $s$ to one, translation $t$ to zero and rotation $r$ to a unit rotation matrix. We use the Gram-Schmidt orthogonalization process to turn the six entries in $r$ into a proper 3D rotation matrix $R$ (Algorithm \ref{alg:gram_schmidt}). This method has been shown to enable stable learning of rotation matrices \cite{falorsi18explorations, park22learning}.
 
-We decode the shape and pose parameters into a transformed point cloud
+We decode the shape and pose parameters into a transformed point cloud $\mathrm{dec} \in \mathbb{R}^{n \times 3}$,
 \begin{align}
-    \mathrm{dec} = [(\pcc + W v) \odot s] R^T + t,
+    \mathrm{dec} = [(\pcc + \mathrm{Reshape}(W v)) \odot s] R^T + t,
 \end{align}
-and define a loss function
+where we treat $s \in \mathbb{R}^{1 \times 3}$ and $t \in \mathbb{R}^{1 \times 3}$ as row vectors.
+We further define a loss function,
 \begin{align}
-    \mathcal{L}(\mathrm{dec}) = \underbrace{\frac{1}{|\mathrm{pcd}|} \sum_k^{|\mathrm{pcd}|} \min_l^{|\mathrm{dec}|} \norm{\mathrm{pcd}_k - \mathrm{dec}_l}_2^2}_{\text{(1)}} + \underbrace{\beta \max_l^{|\mathrm{dec}|} \norm{\mathrm{dec}_l}_2^2}_{\text{(2)}}.
+    \mathcal{L}(\mathrm{dec}) = \mathcal{D}(\mathrm{dec}, \mathrm{pcd}^{\mathrm{(partial)}}) + \beta \max_k \norm{\mathrm{dec}_k}_2^2.
 \end{align}
-The first term in the loss function is a one-sided Chamfer distance between the decoded and the observed point clouds. The second term is a regularizer on the size of the decoded object. Our implementation regularizes the object to fit into the smallest possible ball. Other options are possible, such as directly regularizing $v$ and $s$, regularizing the $L_2$ norm of $\mathrm{dec}$, etc. The main reason for the regularizer is to prevent large predicted meshes in real-world experiments, which might make it impossible to find collision-free motion plans.
+The first term in the loss function is a one-sided Chamfer distance between the decoded and the observed point clouds (Equation \ref{eqn:chamfer}). The second term is a regularizer on the size of the decoded object. Our implementation regularizes the object to fit into the smallest possible ball. Other options are possible, such as directly regularizing $v$ and $s$, regularizing the $L_2$ norm of $\mathrm{dec}$, etc. The main reason for the regularizer is to prevent large predicted meshes in real-world experiments, which might make it impossible to find collision-free motion plans.
 
-We minimize $\mathcal{L}$ with respect to $v, s, t$ and $r$ using the Adam optimizer \cite{kingma17adam} with learning rate $10^{-2}$ for 100 steps. We set $\beta=10^{-2}$. We found the optimization process is prone to getting stuck in local minima; e.g., instead of aligning the handle of the decoded mug with the observed point cloud, the optimizer might change the shape of the decoded mug to hide its handle. Hence, we restart the process with many different random initial rotations and pick the solution with the lowest loss function. Further, we randomly subsample the point clouds at each gradient descent step -- this allows us to run 12 random starting orientations at once on a consumer GPU \evdp{which one?}.
+We minimize $\mathcal{L}$ with respect to $v, s, t$ and $r$ using the Adam optimizer \cite{kingma17adam} with learning rate $10^{-2}$ for 100 steps. We set $\beta=10^{-2}$. We found the optimization process is prone to getting stuck in local minima; e.g., instead of aligning the handle of the decoded mug with the observed point cloud, the optimizer might change the shape of the decoded mug to hide its handle. Hence, we restart the process with many different random initial rotations and pick the solution with the lowest loss function. Further, we randomly subsample the point clouds at each gradient descent step -- this allows us to run 12 random starting orientations at once on an NVIDIA RTX 2080Ti GPU.
 
 As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh as described in Section \ref{sec:methods:mesh}) and its pose represented by $t$ and $R$.
 
@@ -381,9 +384,17 @@ As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh a
     \label{fig:grasps_and_placements}
 \end{figure}
 
+Our key contribution is the idea of registering \textit{interaction points} onto canonical meshes and trasferring them to new object instances via shape warping. Consider a 
+
 Our key contribution is a generalizable representation of 3D robotic actions with respect to manipulated objects. We propose an action abstraction we call \textit{interaction points}: pairs of these points capture the interaction of either a robot and an object, or a pair of objects. Crucially, we are able to warp interaction points to novel objects without any additional learning. We describe the cloning of grasping and relational object placement, but interaction points could be also used in, e.g., pushing or tossing. We use a single demonstration of a grasp or a placement to identify the interaction points.
 
-\textbf{Grasping:} Assume that we have a single demonstration of grasping an object. We have inferred object shape $v$ and pose $T$ (Section X \evdp{section number missing}). We also have our reconstructed and transformed point cloud $\pcx{v}$, object mesh $\mathrm{obj}^{(v)}$ and a gripper mesh $\mathrm{grip}$. We find $N$ pairs of points $(p^{(v)}_j, p^{(G)}_j)$ that define the contacts between the object and the gripper. We use \texttt{pybullet} collision checking for this purpose. Each $p^{(v)}_j$ is a point in $\pcx{v}$ with index $i_j$.
+\paragraph{Finding Interaction Points} 
+
+\paragraph{Warping Interaction Points}
+
+\paragraph{Using Multiple Demonstrations}
+
+\textbf{Grasping:} Assume that we have a single demonstration of grasping an object. We have inferred object shape $v$ and pose $T$ (Section \ref{sec:methods:scene}). We also have our reconstructed and transformed point cloud $\pcx{v}$, object mesh $\mathrm{obj}^{(v)}$ and a gripper mesh $\mathrm{grip}$. We find $N$ pairs of points $(p^{(v)}_j, p^{(G)}_j)$ that define the contacts between the object and the gripper. We use \texttt{pybullet} collision checking for this purpose. Each $p^{(v)}_j$ is a point in $\pcx{v}$ with index $i_j$.
 
 Given a new object to be grasped with shape $v'$, pose $T'$ and a point cloud $\pcx{v'}$, we create new pairs of points $(p^{(v')}_i, p^{(G)}_i)$. The points $p^{(v)}_i$ and $p^{(v')}_i$ \evdp{they're not in the below equation} are related by the following equation:
 \begin{align}
@@ -656,7 +667,7 @@ Among the $K$ example objects, we would like to find the one that is the easiest
 
 \subsection{Gram-Schmidt orthogonalization}
 
-We turn two vectors into a rotation matrix using Algorithm \ref{alg:gram_schmidt} \cite{park22learning}.
+We compute a rotation matrix from two 3D vectors using Algorithm \ref{alg:gram_schmidt} \cite{park22learning}.
 
 \input{latex/algorithm_gram_schmidt}
 
