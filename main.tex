@@ -212,7 +212,7 @@ This paper proposes a different approach to the point correspondence problem bas
 
 \section{Related Work}
 
-\subsection{Imitation Learning from Few Demonstrations} 
+\paragraph{Imitation Learning from Few Demonstrations} 
 
 We build on a body of work in robotics that aims to learn generalizable manipulation policies from few demonstrations. A seminal idea in the literature is based on key-point representations of objects \evdp{cite the paper that introduced the idea}. \citet{manuelli19kpam} manually create a dataset of semantically meaningful key-points, such as the rim and the handle of a mug, and train a classifier to detect key-points on novel object instances. A task is defined as a time series of key-point positions. Then, a trajectory for a previously unseen object can be computed by matching the key-points on the novel object to the key-point positions seen in a demonstration. In comparison, our method does not require a manual labeling of key-points -- we use the inferred geometry of objects to automatically extract interaction points. \citet{gao21kpam,gao21kpamsc} further extend the key-point framework with feedback control and collision checking. Later works addressed key-point learning \cite{1910,vecerik20s3k,manuelli2 0keypoints,turpin21gift}.
 
@@ -220,11 +220,11 @@ A related idea is the learning of descriptors attached to arbitrary 2D or 3D key
 
 Other prior works relied on CAD model matching \cite{klank09realtime,brook11collaborative,beetz11robotic,jakel12learning} and shape primitives \cite{miller03automatic} to reproduce grasps or manipulation trajectories. However, it can be difficult to generalize these methods to novel instances of objects. Recently, \citet{wen22you} tackled category-level manipulation by re-mapping key poses of objects across instances. \citet{pan22taxpose} make predictions about the desired pose of a child object related to a parent object (e.g. hanging a mug on a mug-tree) using cross-attention \cite{vaswani17attention} between the pair of point clouds.
 
-\subsection{Shape Warping and Manipulation}
+\paragraph{Shape Warping and Manipulation}
 
 Prior works explored the idea of learning a generative model of point clouds through non-rigid point cloud registration \cite{rodriguez18transferring,rodriguez18transferringa,klamt18supervised,thompson21shapebased}. The model is used to grasp objects based on partial point clouds \cite{rodriguez18transferring,rodriguez18transferringa,klamt18supervised} and to parameterize motion primitives \cite{thompson21shapebased}. In contrast, we learn a generative model of meshes, which we use to find interaction points in demonstrations of manipulation tasks, which in turn enable generalization across object instances. In addition, the pose of objects is either assumed to be given \cite{thompson21shapebased} or detected using a neural pose detector \cite{klamt18supervised}. We propose joint shape and pose inference using gradient descent with random restarts. Gradient descent on both the pose and the shape was used in \cite{rodriguez18transferring,rodriguez18transferringa}, but only to correct for minor deviations in pose. % TODO: ... also \cite{simeonov20long,you21omnihang,menon22viewpoint,lu22online,wen22you,cong23comprehensive} ...
 
-A second related line of work is focused on detecting the contacts between a gripper and an object, and then warping the contact points to fit a novel object \cite{li07datadriven,benamor12generalization,hillenbrand12transferring,jakel12learning,stouraitis15functional,rodriguez18learning,pavlichenko19autonomous,tian19transferring}. Instead of directly warping the contact points, we first register them on the canonical mesh corresponding to the grasped object class. This way, we can predict grasps based on partial point clouds; we can even grasp a part of the object that is visually occluded. % TODO: more works
+A second related line of work focuses on detecting the contacts between a gripper and an object, and then warping the contact points to fit a novel object \cite{li07datadriven,benamor12generalization,hillenbrand12transferring,jakel12learning,stouraitis15functional,rodriguez18learning,pavlichenko19autonomous,tian19transferring}. Instead of directly warping the contact points, we first register them on the canonical mesh corresponding to the grasped object class. This way, we can predict grasps based on partial point clouds; we can even grasp a part of the object that is visually occluded. % TODO: more works
 
 Finally, point cloud warping has been used to manipulate deformable objects \cite{lee15learning,schulman16learning} and to parameterize a pouring skill \cite{brandi14generalizing}.
 
@@ -355,7 +355,7 @@ We minimize $\mathcal{L}$ with respect to $v, s, t$ and $r$ using the Adam optim
 
 As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh as described in Section \ref{sec:methods:mesh}) and its pose represented by $t$ and $R$.
 
-\subsection{Cloning Robot Actions via Interaction Points}
+\subsection{Transferring Robot Actions via Interaction Points}
 
 \begin{figure}
     \centering
@@ -397,14 +397,35 @@ As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh a
 
 % For placement actions, we generalize the interaction points to include nearby points between a pair of objects. 
 
-Consider the example of a mug that is being warped using $\pcx{v} = \pcc + \mathrm{Reshape}(W v)$ (Equation \ref{eq:warp}). We can select any point $\pcx{v}_i$ and track it as the mug is being warped. For example, if the point lies on the handle of the mug, we can use it to align handles of mugs of different shapes and sizes. That can, in turn, facilitate the transfer of manipulation policies across mugs. The key question is how do we find the points $\pcx{v}_i$ relevant to a particular task.
+Consider the example of a mug that is warped using $\pcx{v} = \pcc + \mathrm{Reshape}(W v)$ (Equation \ref{eq:warp}). We can select any point $\pcx{v}_i$ and track it as the mug changes its shape. For example, if the point lies on the handle of the mug, we can use it to align handles of mugs of different shapes and sizes. That can, in turn, facilitate the transfer of manipulation policies across mugs. The key question is how do we find the points $\pcx{v}_i$ relevant to a particular task.
 
 We propose the idea of \textit{interaction points}, which are specific points on objects automatically found from a demonstration of a task. We use different techniques to find interaction points for object grasps and placements, and we describe them in turn.
 
-\paragraph{Finding interaction points} For grasping, we define the interaction points as the pairs of contact points between the gripper and the object at the point of grasp. Let $\mathrm{pcd}^{(v)}$ and $\mathrm{obj}^{(v)}$
+\paragraph{Grasp interaction points} For grasping, we define the interaction points as the pairs of contact points between the gripper and the object at the point of grasp. Let $\mathrm{pcd}^{(v)}$ and $\mathrm{obj}^{(v)}$ be the point cloud and mesh for the grasped object inferred by our method (Section \ref{sec:methods:scene}). Let $\mathrm{grip}$ be a mesh of our gripper and $T_{\mathrm{grasp}}$ the pose of the grasp. We use \texttt{pybullet} collision checking to find $B$ pairs of contact points $ (p^{(v)}, p^{(G)})$, where $p^{(v)}$ is on the surface of $\mathrm{obj}^{(v)}$ and $p^{(G)}$ is on the surface of $\mathrm{grip}$ in pose $T_{\mathrm{grasp}}$. We further find a set of indices $I_{\mathrm{grasp}} = \{i_1, i_2, ..., i_B\}$, where $\pcx{v}_{i_j}$ is the nearest neighbor of $p^{(v)}_j$. This allows us to transfer the interaction points to a different warp $\pcx{v'}$.
+
+\paragraph{Transferring grasps} Given a new scene, we infer the point cloud of the new object $\pcx{v'}$. We solve for the new grasp as the optimal transformation $T_{\mathrm{grasp}}^*$ that aligns the pairs of points $(\pcx{v'}_{i_j}, p^{(G)}_j), j \in \{1, ..., B\}, i_j \in I_{\mathrm{grasp}}$. Here, $\pcx{v'}_{i_j}$ are the contact points from the demonstration warped to a new object instance. The $T_{\mathrm{grasp}}^*$ that minimizes the pairwise distances can be computed analytically \cite{horn88computation}.
+
+\paragraph{Placement interaction points} For placement actions, we look at two objects being placed in relation to each other, such as a mug being placed on a mug-tree. Here, we define interaction points as pairs of \textit{nearby points} between the two object, a generalization of contact points. We use nearby points so that the two objects do not have to make contact in the demonstration; e.g., the mug might not be touching the tree before it is released from the gripper. Similarly, the demonstration of an object being dropped into a contained might not include contacts.
+
+Let $\pcx{v_1}$ and $\pcx{v_2}$ be the inferred point clouds of the two objects. We capture the original point clouds from a demonstration right before the robot opens its gripper. We find pairs of nearby points with $L_2$ distance below $\delta$,
 \begin{align}
-    \{ p^{(v)}, p^{(G)} \} = \mathrm{FindContacts}(\mathrm{obj}^{(v)}, \mathrm{Transform}(\mathrm{grip}, T_{\mathrm{grasp}}))
+    \left\{ (p^{(v_1)}, p^{(v_2)}) | \norm{p^{(v_1)} - p^{(v_2)}} < \delta, p^{(v_1)} \in \pcx{v_1}, p^{(v_2)} \in \pcx{v_2} \right\}.
 \end{align}
+Since there might be tens of thousands of these pairs, we subsample them using farthest point sampling. We record the indices of points $p^{(v_2)}$ in $\pcx{v_2}$ as $I_{\mathrm{place}} = \{ i_1, i_2, ..., i_B \}$.
+
+We further add $p^{(v_2)}$ as \textit{virtual points} into $\pcx{v_1}$ -- this idea is illustrated in Figure \ref{fig:contacts} b and c. For example, we wish to solve for a pose that places a mug on a tree, such that the branch of the tree intersects the mug's handle. But, there is no point in the middle of the mug's handle that we can use. Hence, we add the nearby points $p^{(v_2)}$ (e.g. points on the branch of the tree) as virtual points $q^{(v_1)}$ to $\pcx{v_1}$. We anchor $q^{(v_1)}$ using k-nearest-neighbors so that it changes as we warp $\pcx{v_1}$. Specifically, for each point $p^{(v_2)}$ we find $L$ nearest neighbors $(n_1, n_2, ..., n_L)$ and anchor $q^{(v_1)}$ as follows,
+\begin{align}
+    q^{(v_1)} = \frac{1}{L} \sum_{k=1}^L \pcx{v_1}_{n_k} + \underbrace{(p^{(v_2)} - \pcx{v_1}_{n_k})}_{\Delta_k} = p^{(v_2)}.
+\end{align}
+To transfer the placement, we save the neighbor indices $n_k$ and the neighbor displacements $\Delta_k$.
+
+\paragraph{Transferring placements} 
+
+Given a new scene, we infer the point clouds of the new objects $\pcx{v'_1}$ and $\pcx{v'_2}$. We calculate the positions of the virtual points with respect to the warped nearest neighbors,
+\begin{align}
+    q^{(v'_1)} = \frac{1}{L} \sum_{k=1}^L \pcx{v'_1}_{n_k} + \Delta_k.
+\end{align}
+We then construct pairs of points $(q^{(v'_1)}_j, \pcx{v'_2}_{i_j}), j \in \{1, ..., B\}, i_j \in I_{\mathrm{place}}$ and find the optimal transformation of the first object $T^*_{\mathrm{place}}$ that minimizes the distance between the point pairs. Since we know how we picked up the first object, we can transform $T^*_{\mathrm{place}}$ into the coordinate frame of the robot hand and execute the action of placing object 1 onto object 2.
 
 % Our key contribution is a generalizable representation of 3D robotic actions with respect to manipulated objects. We propose an action abstraction we call \textit{interaction points}: pairs of these points capture the interaction of either a robot and an object, or a pair of objects. Crucially, we are able to warp interaction points to novel objects without any additional learning. We describe the cloning of grasping and relational object placement, but interaction points could be also used in, e.g., pushing or tossing. We use a single demonstration of a grasp or a placement to identify the interaction points.
 
@@ -413,32 +434,32 @@ We propose the idea of \textit{interaction points}, which are specific points on
 
 % \paragraph{Using Multiple Demonstrations}
 
-\textbf{Grasping:} Assume that we have a single demonstration of grasping an object. We have inferred object shape $v$ and pose $T$ (Section \ref{sec:methods:scene}). We also have our reconstructed and transformed point cloud $\pcx{v}$, object mesh $\mathrm{obj}^{(v)}$ and a gripper mesh $\mathrm{grip}$. We find $N$ pairs of points $(p^{(v)}_j, p^{(G)}_j)$ that define the contacts between the object and the gripper. We use \texttt{pybullet} collision checking for this purpose. Each $p^{(v)}_j$ is a point in $\pcx{v}$ with index $i_j$.
+% \textbf{Grasping:} Assume that we have a single demonstration of grasping an object. We have inferred object shape $v$ and pose $T$ (Section \ref{sec:methods:scene}). We also have our reconstructed and transformed point cloud $\pcx{v}$, object mesh $\mathrm{obj}^{(v)}$ and a gripper mesh $\mathrm{grip}$. We find $N$ pairs of points $(p^{(v)}_j, p^{(G)}_j)$ that define the contacts between the object and the gripper. We use \texttt{pybullet} collision checking for this purpose. Each $p^{(v)}_j$ is a point in $\pcx{v}$ with index $i_j$.
 
-Given a new object to be grasped with shape $v'$, pose $T'$ and a point cloud $\pcx{v'}$, we create new pairs of points $(p^{(v')}_i, p^{(G)}_i)$. The points $p^{(v)}_i$ and $p^{(v')}_i$ \evdp{they're not in the below equation} are related by the following equation:
-\begin{align}
-    p^{(v')}_j T'^{-1} = \underbrace{p^{(v)}_j T^{-1}}_{\text{(1)}} + \underbrace{[W(v' - v)]_{i_j}}_{\text{(2)}} \label{eq:contact_point_warping}.
-\end{align}
-Intuitively, we transform the interaction points to a canonical pose and then warp them to conform to a new object instance. Term 1 ensures that we can repeat the grasp in any orientation ($\mathrm{SE}(3)$-invariance) and Term 2 encodes generalization over object shapes using linear shape warping.
+% Given a new object to be grasped with shape $v'$, pose $T'$ and a point cloud $\pcx{v'}$, we create new pairs of points $(p^{(v')}_i, p^{(G)}_i)$. The points $p^{(v)}_i$ and $p^{(v')}_i$ \evdp{they're not in the below equation} are related by the following equation:
+% \begin{align}
+%     p^{(v')}_j T'^{-1} = \underbrace{p^{(v)}_j T^{-1}}_{\text{(1)}} + \underbrace{[W(v' - v)]_{i_j}}_{\text{(2)}} \label{eq:contact_point_warping}.
+% \end{align}
+% Intuitively, we transform the interaction points to a canonical pose and then warp them to conform to a new object instance. Term 1 ensures that we can repeat the grasp in any orientation ($\mathrm{SE}(3)$-invariance) and Term 2 encodes generalization over object shapes using linear shape warping.
 
-We compute the target pose of the robot gripper as the optimal transform $T_{\text{grasp}}$ of the points $p^{(G)}_j$ that minimizes the following loss function. An analytical solution exists \cite{horn88computation}.
-\begin{align}
-    \mathcal{L}(T) = \sum_{j=1}^N \norm{ p^{(v')}_j - T p^{(G)}_j }_2^2. \label{eq:coordinate_transform}
-\end{align}
+% We compute the target pose of the robot gripper as the optimal transform $T_{\text{grasp}}$ of the points $p^{(G)}_j$ that minimizes the following loss function. An analytical solution exists \cite{horn88computation}.
+% \begin{align}
+%     \mathcal{L}(T) = \sum_{j=1}^N \norm{ p^{(v')}_j - T p^{(G)}_j }_2^2. \label{eq:coordinate_transform}
+% \end{align}
 
-\textbf{Relational object placement:} We consider tasks where object 1 should be placed in a specific configuration relative to object 2. The placement can be both final (e.g. mug on mug-tree) or only a waypoint in a task (e.g. brush sliding over a canvas). Given a demonstration, we infer the pose $T_1, T_2$ and shape $v_1, v_2$ of both objects as well as their reconstructed and transformed point clouds $\pcx{v_1}, \pcx{v_2}$. We find all pairs of nearby points $(p^{(v_1)}_j \in \pcx{v_1}, p^{(v_2)}_j \in \pcx{v_2})$ such that $\norm{p^{(v_1)}_j - p^{(v_2)}_j} \leq \delta$. This step will usually return thousands of points and we find a subset of size 100 using farthest point sampling \cite{eldar94farthest} to get a representative sample. We use nearby points as a strict generalization of contact points: some demonstrations of a task can involve placing an object free of contact and letting it fall in place.
+% \textbf{Relational object placement:} We consider tasks where object 1 should be placed in a specific configuration relative to object 2. The placement can be both final (e.g. mug on mug-tree) or only a waypoint in a task (e.g. brush sliding over a canvas). Given a demonstration, we infer the pose $T_1, T_2$ and shape $v_1, v_2$ of both objects as well as their reconstructed and transformed point clouds $\pcx{v_1}, \pcx{v_2}$. We find all pairs of nearby points $(p^{(v_1)}_j \in \pcx{v_1}, p^{(v_2)}_j \in \pcx{v_2})$ such that $\norm{p^{(v_1)}_j - p^{(v_2)}_j} \leq \delta$. This step will usually return thousands of points and we find a subset of size 100 using farthest point sampling \cite{eldar94farthest} to get a representative sample. We use nearby points as a strict generalization of contact points: some demonstrations of a task can involve placing an object free of contact and letting it fall in place.
 
-Since $p^{(v_1)}_j$ and $p^{(v_2)}_j$ are not necessarily in contact, we cannot simply compute the optimal transform that aligns the pairs of points. We solve this problem by creating virtual points in $\pcx{v_1}$ that are in contact with points $p^{(v_2)}_j$. Each virtual point is defined as
-\begin{align}
-    p^{(v_1)}_{V,j} = \frac{1}{L} \sum_{k=1}^L \pcx{v_1}_{i_k} + \underbrace{(p^{(v_2)}_j - \pcx{v_1}_{i_k})}_{\Delta_k} = p^{(v_2)}_j,
-\end{align}
-where $i_1, i_2$, ..., $i_L$ are indices of the k-nearest-neighbors to point $p^{(v_2)}_j$ in $\pcx{v_1}$. Figure \ref{fig:contacts} (b) and (c) shows an example of this process: we create a virtual point in the middle of the handle of a mug, which is in contact with the branch of a mug-tree. Note that these points are found automatically and we do not require any task specific information.
+% Since $p^{(v_1)}_j$ and $p^{(v_2)}_j$ are not necessarily in contact, we cannot simply compute the optimal transform that aligns the pairs of points. We solve this problem by creating virtual points in $\pcx{v_1}$ that are in contact with points $p^{(v_2)}_j$. Each virtual point is defined as
+% \begin{align}
+%     p^{(v_1)}_{V,j} = \frac{1}{L} \sum_{k=1}^L \pcx{v_1}_{i_k} + \underbrace{(p^{(v_2)}_j - \pcx{v_1}_{i_k})}_{\Delta_k} = p^{(v_2)}_j,
+% \end{align}
+% where $i_1, i_2$, ..., $i_L$ are indices of the k-nearest-neighbors to point $p^{(v_2)}_j$ in $\pcx{v_1}$. Figure \ref{fig:contacts} (b) and (c) shows an example of this process: we create a virtual point in the middle of the handle of a mug, which is in contact with the branch of a mug-tree. Note that these points are found automatically and we do not require any task specific information.
 
-We now have pairs of points $(p^{(v_1)}_{V,j} \in \pcx{v_1}, p^{(v_2)}_j \in \pcx{v_2})$ that are in contact. Given a novel object 1 of shape $v'_1$, we can warp the virtual points as follows:
-\begin{align}
-    p^{(v'_1)}_{V,j} = \frac{1}{L} \sum_{k=1}^L \pcx{v'_1}_{i_k} + \Delta_k.
-\end{align}
-We can also warp the second object to shape $v'_2$ using Equation \ref{eq:contact_point_warping} and compute the new optimal transform $T_{\text{rel}}$ using Equation \ref{eq:coordinate_transform}. Finally, we transform $T_{\text{rel}}$ from the coordinate space of object 1 to the coordinate space of the gripper holding the object (we record the relative transform between the pose of the object and the gripper when we pick it up). Hence, we get $T_{\text{place}}$ that can be executed by a physical robot.
+% We now have pairs of points $(p^{(v_1)}_{V,j} \in \pcx{v_1}, p^{(v_2)}_j \in \pcx{v_2})$ that are in contact. Given a novel object 1 of shape $v'_1$, we can warp the virtual points as follows:
+% \begin{align}
+%     p^{(v'_1)}_{V,j} = \frac{1}{L} \sum_{k=1}^L \pcx{v'_1}_{i_k} + \Delta_k.
+% \end{align}
+% We can also warp the second object to shape $v'_2$ using Equation \ref{eq:contact_point_warping} and compute the new optimal transform $T_{\text{rel}}$ using Equation \ref{eq:coordinate_transform}. Finally, we transform $T_{\text{rel}}$ from the coordinate space of object 1 to the coordinate space of the gripper holding the object (we record the relative transform between the pose of the object and the gripper when we pick it up). Hence, we get $T_{\text{place}}$ that can be executed by a physical robot.
 
 
 % \subsection{Action: Warping of Grasps and Placements}
