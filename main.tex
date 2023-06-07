@@ -127,13 +127,13 @@
 % 	For the initial submission the authors will be anonymized.
 
 \author{
-  (Not final order) Ondrej Biza$^1$, Skye Thompson$^2$, Kishore Reddy Pagidi$^1$, Abhinav Kumar$^1$, \\
-  \textbf{Elise van der Pol$^3$, Robin Walters$^1$, Thomas Kipf$^4$,} \\
-  \textbf{Jan-Willem van de Meent$^{1,5}$, Lawson Wong$^1$, Robert Platt$^1$} \\
+  Ondrej Biza$^1$, Skye Thompson$^2$, Kishore Reddy Pagidi$^1$, Abhinav Kumar$^1$, \\
+  \textbf{Elise van der Pol$^{3,*}$, Robin Walters$^{1,*}$, Thomas Kipf$^{4,*}$} \\
+  \textbf{Jan-Willem van de Meent$^{1,5,\dag}$, Lawson L.S. Wong$^{1,\dag}$, Robert Platt$^{1,\dag}$} \\
   $^1$ Northeastern University, $^2$ Brown University, $^3$ Microsoft Research, \\$^4$ Google DeepMind, $^5$ University of Amsterdam \\
+  $^*$ Equal contribution. $^\dag$ Equal advising. \\
   \texttt{biza.o@northeastern.edu} \\
 }
-
 
 \begin{document}
 \maketitle
@@ -149,34 +149,15 @@ Imitation learning of robot policies from few demonstrations is crucial in open-
 
 %===============================================================================
 
-% \begin{figure}[h]
-%     \centering
-%     \includegraphics[width=\textwidth]{figures/figure_9.pdf}
-%     \caption{Examples of real-world generalization capabilities of SA-Warp. \ob{TODO: Reduce visual clutter, maybe masking or blurring.}}
-%     \label{fig:intro}
-% \end{figure}
-
 \section{Introduction}
-
-
-% \begin{wrapfigure}[17]{r}{0.45\textwidth}
-% \vspace{-0.5cm}
-%   \begin{center}
-%     \includegraphics[width=0.45\textwidth]{figures/mugs1.png} \\
-%     \includegraphics[width=0.45\textwidth]{figures/mugs2.png}
-%     \end{center}
-% \vspace{-0.2cm}
-% \caption{The Mug Tree task.}
-% \label{fig:mugontree}
-% \end{wrapfigure}
 
 \begin{wrapfigure}[17]{r}{0.45\textwidth}
 \vspace{-0.5cm}
   \begin{center}
-    \includegraphics[width=0.45\textwidth]{figures/intro_1.pdf} \\
+    \includegraphics[width=0.45\textwidth]{figures/intro_2.pdf} \\
     \end{center}
 \vspace{-0.2cm}
-\caption{The Mug Tree task. \ob{TODO: Use white transparent layer instead of blurring.}}
+\caption{The Mug Tree task.}
 \label{fig:mugontree}
 \end{wrapfigure}
 
@@ -193,7 +174,7 @@ To be successful in this setting, it is generally necessary to bias the model si
 
 % keypoints~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. The idea here is to train a neural network model to assign descriptors to points on a novel object instance as a function of their semantic location on the object, e.g. points on the handles from different mugs would be assigned similar descriptors. Once these descriptors have been learned, they can be used to represent relative object poses for object categories in terms of the relative locations of their keypoints. This enables us to translate a demonstration on one of set of in-category objects to a different set of in-category objects. For example, the system would be able to translate the demonstration in the top row of Figure~\ref{fig:mugontree} to produce the behavior in the bottom row of Figure~\ref{fig:mugontree}.
 
-This paper proposes a different approach to the point correspondence problem based on Coherent Point Drift (CPD)~\cite{myronenko2010point}, a point-set registration algorithm. We call this method \emph{Interaction Warping}. Using CPD, we train a shape-completion model to register a novel in-category object instance to a canonical object model in which the a task has been defined via one-shot demonstration. The canonical task can then be projected into scenes with novel in-category objects by registering the new objects to the canonical models. Our method has several advantages over the previous work mentioned above~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. First, it performs better in terms of its ability to successfully perform a novel instance of a demonstrated task, both in simulation and on robotic hardware. Second, it requires an order-of-magnitude fewer object instances to train each new object category -- tens of object instances rather than hundreds. Third, our method is completely devoid of neural networks -- the approach is based on Gaussian Mixture models instead. This makes the approach more computationally efficient \evdp{do you have an estimate of how much more?} and it means that it is much easier to reason about issues like uncertainty and safety of the model. 
+This paper proposes a different approach to the point correspondence problem based on Coherent Point Drift (CPD)~\cite{myronenko2010point}, a point-set registration algorithm. We call this method \emph{Interaction Warping}. Using CPD, we train a shape-completion model to register a novel in-category object instance to a canonical object model in which the task has been defined via one-shot demonstration. The canonical task can then be projected into scenes with novel in-category objects by registering the new objects to the canonical models. Our method has several advantages over the previous work mentioned above~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. First, it performs better in terms of its ability to successfully perform a novel instance of a demonstrated task, both in simulation and on robotic hardware. Second, it requires an order-of-magnitude fewer object instances to train each new object category -- tens of object instances rather than hundreds. Third, our method is completely devoid of neural networks -- the approach is based on Gaussian Mixture models instead. \evdp{Option: Third, our method is agnostic to the use of neural networks -- the approach presented is based on Gaussian Mixture models, though using neural networks is possible.} This makes the approach more computationally efficient \evdp{do you have an estimate of how much more?} and it means that it is much easier to reason about issues like uncertainty and safety of the model. 
 
 -- make sure we talk about novel instances, but known categories, i.e. category level manipulation
 
@@ -329,7 +310,7 @@ Finally, we create a new mesh by extracting the warped vertices from $\pcx{v}$ a
 \subsection{Fitting a Mesh to the Observed Point Cloud}
 \label{sec:methods:scene}
 
-We observe a real-world (or simulated) point cloud $\mathrm{scene\_pcd}$ using one to three RGB-D cameras. The cameras are calibrated to the robot's hand and we fuse their outputs into a single point cloud. We detect each object of interest in $\mathrm{scene\_pcd}$ either using clustering and heuristics (Section \ref{sec:exp:rearrangement}) or using pre-trained RGB-based open-vocabulary object detection and instance segmentation models (Section \ref{sec:exp:wild}).
+We observe a real-world (or simulated) point cloud using one to three RGB-D cameras and we fuse the outputs into a single point cloud. We detect each object of interest in the point cloud either using clustering and heuristics (Section \ref{sec:exp:rearrangement}) or using pre-trained RGB-based open-vocabulary object detection and instance segmentation models (Section \ref{sec:exp:wild}).
 
 Using our latent space from Section \ref{sec:methods:mesh}, we aim to recover the pose and the complete mesh of each detected object from its point cloud $\mathrm{pcd}^{\mathrm{(partial)}}$. First, we use the class of the detected object to select a model from Section \ref{sec:methods:mesh} -- we have one for each class. We center $\mathrm{pcd}^{\mathrm{(partial)}}$ and initialize the canonical point cloud with the following parameters:
 \begin{align}
@@ -397,7 +378,7 @@ As a result, we get the decoded point cloud $\mathrm{dec}$ (turned into a mesh a
 
 % For placement actions, we generalize the interaction points to include nearby points between a pair of objects. 
 
-Consider the example of a mug that is warped using $\pcx{v} = \pcc + \mathrm{Reshape}(W v)$ (Equation \ref{eq:warp}). We can select any point $\pcx{v}_i$ and track it as the mug changes its shape. For example, if the point lies on the handle of the mug, we can use it to align handles of mugs of different shapes and sizes. That can, in turn, facilitate the transfer of manipulation policies across mugs. The key question is how do we find the points $\pcx{v}_i$ relevant to a particular task.
+Consider the example of a mug that is warped using $\pcx{v} = \pcc + \mathrm{Reshape}(W v)$ (Equation \ref{eq:warp}). We can select any point $\pcx{v}_i$ and track it as the mug changes its shape. For example, if the point lies on the handle of the mug, we can use it to align handles of mugs of different shapes and sizes. That can, in turn, facilitate the transfer of manipulation policies across mugs. The key question is how to find the points $\pcx{v}_i$ relevant to a particular task.
 
 We propose the idea of \textit{interaction points}, which are specific points on objects automatically found from a demonstration of a task. We use different techniques to find interaction points for object grasps and placements, and we describe them in turn.
 
@@ -498,75 +479,58 @@ We evaluate both the perception and imitation learning capabilities of Interacti
 
     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
         \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/1.jpg}
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/1.jpg}
     \end{subfigure}
     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
         \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/2.jpg}
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/6.jpg}
     \end{subfigure}
     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
         \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/3.jpg}
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/8.jpg}
     \end{subfigure}
     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
         \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/4.jpg}
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/9.jpg}
     \end{subfigure}
     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
         \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/5.jpg}
-    \end{subfigure}
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/6.jpg}
-    \end{subfigure}
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/7.jpg}
-    \end{subfigure}
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/8.jpg}
-    \end{subfigure}
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/9.jpg}
-    \end{subfigure}
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree/10.jpg}
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/10.jpg}
     \end{subfigure}
 
-    \caption{Example of an episode of putting a mug on a tree starting from a tilted mug pose. \ob{TODO: Zoom in.}}
-    \label{fig:mug_tree_episode}
+    \caption{Example of an episode of putting a mug on a tree starting from a tilted mug pose.}
+    \label{fig:mug_tree_episode_small}
 \end{figure}
 
-\begin{table}[h]
+\begin{table*}[h]
     \centering
+    \scalebox{0.92}{
     \begin{tabular}{lllcccccc}
         \toprule
-          & & \# Train. & \multicolumn{2}{c}{\textbf{Mug on Tree}} & \multicolumn{2}{c}{\textbf{Bowl on Mug}} & \multicolumn{2}{c}{\textbf{Bottle in Container}} \\
-         \textbf{Method} & \# Demos & Meshes & Upright & Arbitrary & Upright & Arbitrary & Upright & Arbitrary \\
+          & \# & \# Train. & \multicolumn{2}{c}{\textbf{Mug on Tree}} & \multicolumn{2}{c}{\textbf{Bowl on Mug}} & \multicolumn{2}{c}{\textbf{Bottle in Container}} \\
+         \textbf{Method} & Demo & Meshes & Upright & Arbitrary & Upright & Arbitrary & Upright & Arbitrary \\
          \midrule
-         R-NDF & 1 & 200 & 60.0 & 51.0 & 69.0 & 68.0 & 19.0 & 8.0 \\
-         TAX-Pose & 1 & 200 & 61.0 & 41.0 & 16.0 & 9.0 & 4.0 & 1.0 \\
-         \textbf{IW} & 1 & 10 & \textbf{86.0} & \textbf{83.0} & \textbf{82.0} & \textbf{84.0} & \textbf{62.0} & \textbf{60.0} \\
+         R-NDF \cite{simeonov22se} & 1 & 200 & 60.0 & 51.0 & 69.0 & 68.0 & 19.0 & 8.0 \\
+         TAX-Pose \cite{pan22taxpose} & 1 & 200 & 61.0 & 41.0 & 16.0 & 9.0 & 4.0 & 1.0 \\
+         \textbf{IW (Ours)} & 1 & 10 & \textbf{86.0} & \textbf{83.0} & \textbf{82.0} & \textbf{84.0} & \textbf{62.0} & \textbf{60.0} \\
          \midrule
-         R-NDF & 5 & 200 & 88.0 & \textbf{89.0} & 53.0 & 46.0 & 78.0 & 47.0 \\
-         TAX-Pose & 5 & 200 & 82.0 & 51.0 & 29.0 & 14.0 & 6.0 & 2.0 \\
-         \textbf{IW} & 5 & 10 & \textbf{90.0} & 87.0 & \textbf{75.0} & \textbf{77.0} & \textbf{79.0} & \textbf{79.0} \\
+         R-NDF \cite{simeonov22se} & 5 & 200 & 88.0 & \textbf{89.0} & 53.0 & 46.0 & 78.0 & 47.0 \\
+         TAX-Pose \cite{pan22taxpose} & 5 & 200 & 82.0 & 51.0 & 29.0 & 14.0 & 6.0 & 2.0 \\
+         \textbf{IW (Ours)} & 5 & 10 & \textbf{90.0} & 87.0 & \textbf{75.0} & \textbf{77.0} & \textbf{79.0} & \textbf{79.0} \\
          \midrule
          R-NDF \cite{simeonov22se} & 10 & 200 & 71.0 & 70.0 & 69.0 & 60.0 & \textbf{81.0} & 59.0 \\
          TAX-Pose \cite{pan22taxpose} & 10 & 200 & 82.0 & 52.0 & 20.0 & 20.0 & 2.0 & 1.0 \\
          \textbf{IW (Ours)} & 10 & 10 & \textbf{88.0} & \textbf{88.0} & \textbf{83.0} & \textbf{86.0} & 70.0 & \textbf{83.0} \\
          \bottomrule
     \end{tabular}
-    \caption{Success rates of predicted target poses of objects in \hl{simulation}. Upright and Arbitrary refer to the starting pose of the manipulated object. Each entry is measured over 100 trials with unseen object pairs.}
+    }
+    \caption{Success rates of predicted target poses of objects in \hl{simulation}. Upright and Arbitrary refer to the starting pose of the manipulated object. Measured over 100 trials with unseen object pairs.}
     \label{tab:simulation}
-\end{table}
+\end{table*}
 
 \begin{table*}[t!]
     \centering
+    \scalebox{0.92}{
     \begin{tabular}{lcccccc|cc}
          \toprule
           & \multicolumn{2}{c}{\textbf{Mug on Tree}} & \multicolumn{2}{c}{\textbf{Bowl on Mug}} & \multicolumn{2}{c}{\textbf{Bottle in Container}} & \multicolumn{2}{c}{\textbf{Mean}} \\
@@ -577,6 +541,7 @@ We evaluate both the perception and imitation learning capabilities of Interacti
          \textbf{IW (Ours)} & \textbf{100.0} & \textbf{93.3} & \textbf{83.3} & \textbf{75.0} & \textbf{80.0} & \textbf{73.3} & \textbf{87.8} & \textbf{80.5} \\
          \bottomrule
     \end{tabular}
+    }
     \caption{Success rates of \hl{real-world robot} pick-and-place experiments with a single demonstration. The manipulated object (e.g. a mug) starts in an arbitrary pose (we use a stand to get a range of poses) and the target object (e.g. a mug-tree) starts in an arbitrary upright pose. $^1$The target object (e.g. the mug tree) is in a fixed pose for this experiment, as NDF does not handle target object variation. Each entry is measured over 25 - 30 trials with unseen object pairs.}
     \label{tab:real_world}
 \end{table*}
@@ -893,5 +858,150 @@ Previously, we experimented with Mask R-CNN \cite{he17mask} and Mask2Former \cit
     \caption{Additional examples, please see Figure \ref{fig:real2sim2real}.}
     \label{fig:real2sim2real_part2}
 \end{figure}
+
+\begin{figure}[]
+    \centering
+
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/1.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/2.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/3.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/4.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/5.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/6.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/7.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/8.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/9.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/10.jpg}
+    \end{subfigure}
+
+    \caption{Example of mug on tree episode.}
+    \label{fig:mug_tree_episode}
+\end{figure}
+
+\begin{figure}[]
+    \centering
+
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/1.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/2.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/3.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/4.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/5.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/6.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/7.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/8.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/9.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bowl_on_mug/10.jpg}
+    \end{subfigure}
+
+    \caption{Example of bowl/plate on mug episode.}
+    \label{fig:bowl_on_mug_episode}
+\end{figure}
+
+\begin{figure}[]
+    \centering
+
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/10.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/9.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/8.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/7.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/6.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/5.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/4.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/3.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/2.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/bottle_in_box/1.jpg}
+    \end{subfigure}
+
+    \caption{Example of bottle in box episode.}
+    \label{fig:bottle_in_box_episode}
+\end{figure}
+
 
 \end{document}
