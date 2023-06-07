@@ -2,7 +2,7 @@
 
 %\usepackage{corl_2023} % Use this for the initial submission.
 %\usepackage[final]{corl_2023} % Uncomment for the camera-ready ``final'' version.
-\usepackage[preprint]{corl_2023} % Uncomment for pre-prints (e.g., arxiv); This is like ``final'', but will remove the CORL footnote.
+\usepackage{corl_2023} % Uncomment for pre-prints (e.g., arxiv); This is like ``final'', but will remove the CORL footnote.
 
 % ### custom packages start ###
 % math
@@ -174,9 +174,14 @@ To be successful in this setting, it is generally necessary to bias the model si
 
 % keypoints~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. The idea here is to train a neural network model to assign descriptors to points on a novel object instance as a function of their semantic location on the object, e.g. points on the handles from different mugs would be assigned similar descriptors. Once these descriptors have been learned, they can be used to represent relative object poses for object categories in terms of the relative locations of their keypoints. This enables us to translate a demonstration on one of set of in-category objects to a different set of in-category objects. For example, the system would be able to translate the demonstration in the top row of Figure~\ref{fig:mugontree} to produce the behavior in the bottom row of Figure~\ref{fig:mugontree}.
 
-This paper proposes a different approach to the point correspondence problem based on Coherent Point Drift (CPD)~\cite{myronenko2010point}, a point-set registration algorithm. We call this method \emph{Interaction Warping}. Using CPD, we train a shape-completion model to register a novel in-category object instance to a canonical object model in which the task has been defined via one-shot demonstration. The canonical task can then be projected into scenes with novel in-category objects by registering the new objects to the canonical models. Our method has several advantages over the previous work mentioned above~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. First, it performs better in terms of its ability to successfully perform a novel instance of a demonstrated task, both in simulation and on robotic hardware. Second, it requires an order-of-magnitude fewer object instances to train each new object category -- tens of object instances rather than hundreds. Third, our method is completely devoid of neural networks -- the approach is based on Gaussian Mixture models instead. \evdp{Option: Third, our method is agnostic to the use of neural networks -- the approach presented is based on Gaussian Mixture models, though using neural networks is possible.} This makes the approach more computationally efficient \evdp{do you have an estimate of how much more?} and it means that it is much easier to reason about issues like uncertainty and safety of the model. 
+This paper proposes a different approach to the point correspondence problem based on Coherent Point Drift (CPD)~\cite{myronenko2010point},
+%a point-set registration algorithm.
+a point cloud warping algorithm.
+We call this method \emph{Interaction Warping}. Using CPD, we train a shape-completion model to register a novel in-category object instance to a canonical object model in which the task has been defined via one-shot demonstration. The canonical task can then be projected into scenes with novel in-category objects by registering the new objects to the canonical models. Our method has several advantages over the previous work mentioned above~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. First, it performs better in terms of its ability to successfully perform a novel instance of a demonstrated task, both in simulation and on robotic hardware. Second, it requires an order-of-magnitude fewer object instances to train each new object category -- tens of object instances rather than hundreds.
+%Third, our method is completely devoid of neural networks -- the approach is based on Gaussian Mixture models instead.
+Third, our method is agnostic to the use of neural networks -- the approach presented is based on CPD and PCA models, though using neural networks is possible.% This makes the approach more computationally efficient \evdp{do you have an estimate of how much more?} and it means that it is much easier to reason about issues like uncertainty and safety of the model. 
 
--- make sure we talk about novel instances, but known categories, i.e. category level manipulation
+%-- make sure we talk about novel instances, but known categories, i.e. category level manipulation
 
 % \subsection{Old Intro}
 
@@ -193,9 +198,13 @@ This paper proposes a different approach to the point correspondence problem bas
 
 \section{Related Work}
 
+% First paragraph about how our work is inspired by keypoints and how it relates to prior work on shape warping. Highlight the differences / novelty.
+% Second paragraph on keypoints. Add a note about other imitation learning methods of 3D manipulation, such as PerAct. Add a note about zero-shot learning, PALM-E.
+% Third paragraph on shape warping.
+
 \paragraph{Imitation Learning from Few Demonstrations} 
 
-We build on a body of work in robotics that aims to learn generalizable manipulation policies from few demonstrations. A seminal idea in the literature is based on key-point representations of objects \evdp{cite the paper that introduced the idea}. \citet{manuelli19kpam} manually create a dataset of semantically meaningful key-points, such as the rim and the handle of a mug, and train a classifier to detect key-points on novel object instances. A task is defined as a time series of key-point positions. Then, a trajectory for a previously unseen object can be computed by matching the key-points on the novel object to the key-point positions seen in a demonstration. In comparison, our method does not require a manual labeling of key-points -- we use the inferred geometry of objects to automatically extract interaction points. \citet{gao21kpam,gao21kpamsc} further extend the key-point framework with feedback control and collision checking. Later works addressed key-point learning \cite{1910,vecerik20s3k,manuelli2 0keypoints,turpin21gift}.
+We build on a body of work in robotics that aims to learn generalizable manipulation policies from few demonstrations. A seminal idea in the literature is based on key-point representations of objects \evdp{cite the paper that introduced the idea}. \citet{manuelli19kpam} manually create a dataset of semantically meaningful key-points, such as the rim and the handle of a mug, and train a classifier to detect key-points on novel object instances. A task is defined as a time series of key-point positions. Then, a trajectory for a previously unseen object can be computed by matching the key-points on the novel object to the key-point positions seen in a demonstration. In comparison, our method does not require a manual labeling of key-points -- we use the inferred geometry of objects to automatically extract interaction points. \citet{gao21kpam,gao21kpamsc} further extend the key-point framework with feedback control and collision checking. Later works addressed key-point learning \cite{1910,vecerik20s3k,manuelli20keypoints,turpin21gift}.
 
 A related idea is the learning of descriptors attached to arbitrary 2D or 3D key-points. \citet{florence18dense} use self-supervised learning to learn dense descriptors from images. These descriptors can be used to compute similarities of arbitrary key-points between different instances and poses of objects. \citet{chen22neural} compute descriptors of an arbitrary 3D coordinate, called Neural Descriptor Fields, using an implicit shape representation neural network conditioned on a point cloud \cite{mescheder19occupancy}. By attaching a pose of an object to a set of descriptors, they can match e.g.~the pose of a handle of a mug across different mug instances and poses. The method is used re-arrange objects with a variable initial pose and a fixed goal. \citet{simeonov22se,ryu22equivariant} represent pairs of objects using Neural Descriptor Fields to enable generalization across goal poses. \citet{chun23local} further leverage the locality bias of Neural Descriptor Fields to generalize demonstrations across object classes.
 
@@ -212,21 +221,20 @@ Finally, point cloud warping has been used to manipulate deformable objects \cit
 
 %-- \cite{rodriguez18transferring,rodriguez18transferringa}: Similar to Skye's method; they learn a latent space of displacements w.r.t. a canonical point cloud using PCA. During inference, they use gradient descent to solve for both shape and pose. But, they do not tackle the problem of local minima and hence require the shapes to be already almost in alignment. I could give the example of a handle of a mug getting hidden because of local minima and how we solve that. They then use the latent space to somehow warp the grasp actions of a humanoid hand.
 
-
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{figures/warping.pdf}
-    \caption{Example of warping using CPD and gradient descent with a latent space of warps of a canonical mug. Gradient descent warping works with partial point clouds. \ob{TODO: Use only one panel.}}
-    \label{fig:warping}
-\end{figure}
-
-
 % \section{Background: Shape Warping by CPD and Gradient Descent}
 % \section{Background: Coherent Point Drift (CPD)}
 \section{Background}
 \label{sec:background}
 
 \paragraph{Coherent Point Drift (CPD)}
+
+\begin{wrapfigure}[9]{r}{0.45\textwidth}
+    \centering
+    \vspace{-2.5em}
+    \includegraphics[width=0.45\textwidth]{figures/warping_small.pdf}
+    \caption{Coherent Point Drift warping.}
+    \label{fig:warping}
+\end{wrapfigure}
 
 Given two point clouds, $\pci \in \mathbb{R}^{n \times 3}$ and $\pcj \in \mathbb{R}^{m \times 3}$, Coherent Point Drift (CPD) finds a displacement $\wij  \in \mathbb{R}^{n \times 3}$ of the points $\pci$ that brings them as close as possible (in an $L_2$ sense) to the points $\pcj$~\cite{myronenko2010point}. CPD is a non-rigid point cloud registration method -- each point in $\pci$ can be translated independently. CPD minimizes the following cost function,
 \begin{align}
@@ -552,7 +560,7 @@ For our real-world experiment, we perform both grasps and placements based on a 
 
 \textbf{Result:} We find that interaction warping generally outperforms Relational Neural Descriptor Fields \cite{simeonov2022neural} and TAX-Pose \cite{pan22taxpose} on the simulated relational placement prediction tasks (Table \ref{tab:simulation}) with 20 times fewer training objects. IW can succeed with one demonstration of a task, whereas R-NDF and TAX-Pose usually require five demonstrations. 
 
-In real-world pick and place experiments, we demonstrate the ability of IW to solve the three object re-arrangement tasks -- mug on tree, bowl on mug and bottle in box -- with unseen objects and variation in the starting pose of objects (Table \ref{tab:real_world}). We find that (Relational) Neural Descriptor Fields \cite{simeonov22neural,simeonov22se} struggle with the partial and noisy real-world point clouds. This often results in both the pick and place actions being too imprecise to successfully solve the task. Pre-training (R-)NDF on real-world point clouds could help, but note that IW was also pre-trained on simulated point clouds. We find that the warping of canonical objects is more robust to noisy and occluded point clouds. We show an example episode of mug on tree in Figure \ref{fig:mug_tree_episode}.
+In real-world pick and place experiments, we demonstrate the ability of IW to solve the three object re-arrangement tasks -- mug on tree, bowl on mug and bottle in box -- with unseen objects and variation in the starting pose of objects (Table \ref{tab:real_world}). We find that (Relational) Neural Descriptor Fields \cite{simeonov22neural,simeonov22se} struggle with the partial and noisy real-world point clouds. This often results in both the pick and place actions being too imprecise to successfully solve the task. Pre-training (R-)NDF on real-world point clouds could help, but note that IW was also pre-trained on simulated point clouds. We find that the warping of canonical objects is more robust to noisy and occluded point clouds. We show an example episode of mug on tree in Figure \ref{fig:mug_tree_episode_small}.
 
 We used the meshes predicted by IW to perform collision checking during motion planning. We do not perform collision checking (other than to avoid contact with the table) when using (R-)NDF as these methods do not predict object meshes, but failures due to a collision between the robot and one of the object were infrequent.
 
