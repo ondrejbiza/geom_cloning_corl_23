@@ -14,12 +14,12 @@
     \State $\mathrm{pcd} = \mathrm{pcd} - t_g$. \Comment{\textcolor{blue}{Center the point cloud.}}
     \For {$i = 1$ \textbf{to} $S$}
         \State $R_{\mathrm{init}} =$ Random initial 3D rotation matrix.
-        \State Initialize $v = \begin{pmatrix} 0 & 0 & ... & 0 \end{pmatrix}, s = \begin{pmatrix} 1 & 1 & 1 \end{pmatrix}, t_l = \begin{pmatrix} 0 & 0 & 0 \end{pmatrix}, r = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix}$.
+        \State Initialize $v = \begin{pmatrix} 0 & 0 & ... & 0 \end{pmatrix}, s = \begin{pmatrix} 1 & 1 & 1 \end{pmatrix}, t_l = \begin{pmatrix} 0 & 0 & 0 \end{pmatrix}, \hat{R} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix}$.
         \State Initialize $\mathrm{Adam}$ \cite{kingma17adam} with parameters $v, s, t_l, r$ and learning rate $\eta$.
         \For {$j = 1$ \textbf{to} $T$}
             \State $\delta = \mathrm{Reshape}(Wv)$.
             \State $X = \mathrm{canon.points} + \delta$. \Comment{\textcolor{blue}{Warped canonical point cloud.}}
-            \State $R = \mathrm{GramSchmidt(r)}$.
+            \State $R = \mathrm{GramSchmidt(\hat{R})}$.
             \State $X = (X \odot s) R_{\mathrm{init}}^T R^T + t_l$. \Comment{\textcolor{blue}{Scaled, rotated and translated point cloud.}}
             \State $\mathcal{L} = \frac{1}{|\mathrm{pcd}|} \sum_k^{|\mathrm{pcd}|} \min_l^{|X|} \norm{\mathrm{pcd}_k - X_l}_2^2$. \Comment{\textcolor{blue}{One-sided Chamfer distance.}}
             \State $\mathcal{L} = \mathcal{L} + \beta \max_l^{|X|} \norm{X_l}_2^2$. \Comment{\textcolor{blue}{Object size regularization.}}
