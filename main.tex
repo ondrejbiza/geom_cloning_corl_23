@@ -141,9 +141,7 @@
 %===============================================================================
 
 \begin{abstract}
-Imitation learning of robot policies from few demonstrations is crucial in open-ended applications. We propose a new method, Interaction Warping, for learning 3D robotic manipulation policies from a single demonstration. We infer the 3D mesh of each object in the environment using shape warping, a technique for aligning point clouds across object instances. 
-We then use warped meshes to transfer interaction points from a single demonstration to a scene with novel objects. The notion of interaction points allows us to transfer robot grasps and relational object placements. 
-We show successful one-shot imitation learning on three simulated and real-world object re-arrangement tasks. We also demonstrate the ability of our method to predict object meshes and robot grasps in the wild.
+Imitation learning of robot policies from few demonstrations is crucial in open-ended applications. We propose a new method, Interaction Warping, for learning SE(3) robotic manipulation policies from a single demonstration. We infer the 3D mesh of each object in the environment using shape warping, a technique for aligning point clouds across object instances. Then, we represent manipulation actions as keypoints on objects, which can be warped with the shape of the object. We show successful one-shot imitation learning on three simulated and real-world object re-arrangement tasks. We also demonstrate the ability of our method to predict object meshes and robot grasps in the wild.
 \end{abstract}
 
 % Two or three meaningful keywords should be added here
@@ -164,9 +162,13 @@ We show successful one-shot imitation learning on three simulated and real-world
 \end{wrapfigure}
 
 
-In one-shot imitation learning, we are given a single demonstration of a desired manipulation behavior and we must find a policy that can reproduce the behavior in different situations. A classic example is the Mug Tree task, where a robot must grasp a mug and hang it on a tree by its handle. Given a single demonstration of grasping a mug and hanging it on a tree (top row of Figure~\ref{fig:mugontree}), we want to obtain a policy that can successfully generalize across objects and poses, e.g. differently-shaped mugs and trees (bottom row of Figure~\ref{fig:mugontree}). This presents two key challenges: First, the demonstration must generalize to novel object instances, e.g. different mugs. Second, the policy must reason in $SE(3)$, rather than in $SE(2)$ where the problem is much easier. 
+In one-shot imitation learning, we are given a single demonstration of a desired manipulation behavior and we must find a policy that can reproduce the behavior in different situations. A classic example is the Mug Tree task, where a robot must grasp a mug and hang it on a tree by its handle. Given a single demonstration of grasping a mug and hanging it on a tree (top row of Figure~\ref{fig:mugontree}), we want to obtain a policy that can successfully generalize across objects and poses, e.g. differently-shaped mugs and trees (bottom row of Figure~\ref{fig:mugontree}). This presents two key challenges: First, the demonstration must generalize to novel object instances, e.g. different mugs. Second, the policy must reason in $\mathrm{SE}(3)$, rather than in $\mathrm{SE}(2)$ where the problem is much easier. 
 
-To be successful in this setting, it is generally necessary to bias the model significantly toward the object manipulation domains in question. One popular approach is to establish a correspondence between points on the surface of the objects in the demonstration(s) with the same points on the objects seen at test time. This approach is generally implemented using \emph{keypoints}, point descriptors that encode the semantic location of the point on the surface of an object and transfer well between different novel object instances~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. For example, points on handles from different mugs should be assigned similar descriptors, thereby helping to correspond handles on different mug instances. A key challenge therefore becomes how to learn semantically meaningful key-point descriptors. Early work used hand-coded feature labels~\cite{manuelli2019kpam}. More recent methods learn descriptors during a pre-training step where category-level object descriptor models are trained using multiple in-category object instances over many categories. This can be accomplished using implicit object models~\cite{simeonov2022neural} or point models~\cite{pan2022tax}. 
+To be successful in $\mathrm{SE}(3)$ manipulation, it is generally necessary to bias the model significantly toward the object manipulation domains in question. One popular approach is to establish a correspondence between points on the surface of the objects in the demonstration(s) with the same points on the objects seen at test time. This approach is generally implemented using \emph{keypoints}, point descriptors that encode the semantic location of the point on the surface of an object and transfer well between different novel object instances~\cite{pan2022tax,wang2019dynamic,manuelli2019kpam}. E.g., points on handles from different mugs should be assigned similar descriptors, thereby helping to correspond handles on different mug instances. A key challenge therefore becomes how to learn semantically meaningful keypoint descriptors. Early work used hand-coded feature labels~\cite{manuelli2019kpam}.
+%More recent methods learn descriptors during a pre-training step where category-level object descriptor models are trained using multiple in-category object instances over many categories.
+More recent methods learn a category-level object descriptor models during a pre-training step
+%This can be accomplished using implicit object models~\cite{simeonov2022neural} or point models~\cite{pan2022tax}. 
+using implicit object models~\cite{simeonov2022neural} or point models~\cite{pan2022tax}. 
 
 % More recent methods learn descriptors as the byproduct of an implicit object model~\cite{simeonov2022neural}. Other methods learn a point embedding using a constrastive loss on a DGCNN~\cite{wang2019dynamic} model~\cite{pan2022tax}. 
 
@@ -190,28 +192,15 @@ Third, our method is agnostic to the use of neural networks -- the approach pres
 % First paragraph about how our work is inspired by keypoints and how it relates to prior work on shape warping. Highlight the differences / novelty.
 % Second paragraph on keypoints. Add a note about other imitation learning methods of 3D manipulation, such as PerAct. Add a note about zero-shot learning, PALM-E.
 % Third paragraph on shape warping.
-The two main lines of work we draw on are shape warping \cite{rodriguez18transferring,thompson21shapebased} and imitation learning via key points \cite{manuelli19kpam}. Shape warping uses non-rigid point cloud registration \cite{huang21comprehensive}, a set of methods for aligning point clouds or meshes of objects, to transfer robot skills across object of different shape. In this context, our paper is the first to use shape warping to perform object re-arrangement and to handle objects in arbitrary poses. Second, key points are a state abstraction method that reduces objects states to the poses of a set of task-specific key points. For example, relevant key points on a mug might be points on the rim and the handle of the mug. Key points are then used to transfer robotic policies to novel objects by matching their key points to the demonstration. We use a version of key points, which we call interaction points, to transfer robot actions. The novelty in our work is that our interaction points are found automatically and warped together with object shape.
+The two main lines of work we draw on are shape warping \cite{rodriguez18transferring,thompson21shapebased} and imitation learning via keypoints \cite{manuelli19kpam}. Shape warping uses non-rigid point cloud registration \cite{huang21comprehensive}, a set of methods for aligning point clouds or meshes of objects, to transfer robot skills across object of different shape. In this context, our paper is the first to use shape warping to perform object re-arrangement and to handle objects in arbitrary poses. Second, keypoints are a state abstraction method that reduces objects states to the poses of a set of task-specific keypoints.
+%For example, relevant keypoints on a mug might be points on the rim and the handle of the mug. Keypoints are then used to transfer robotic policies to novel objects by matching their key points to the demonstration.
+We use a version of keypoints, which we call interaction points, to transfer robot actions. The novelty in our work is that our interaction points are found automatically and warped together with object shape.
 
-\textbf{Few-shot Learning of Manipulation Policies:} Key-point-based methods have been used in few-shot learning of object re-arrangement \cite{manuelli19kpam,gao21kpam,gao21kpamsc}. These methods rely on human-annotated object key points, which can be time-consuming to collect. Our work does not require manual annotation. Follow-up works proposed learned key points for learning tool affordances \cite{qin20keto,vecerik20s3k,turpin21gift} and for model-based reinforcement learning \cite{manuelli20keypoints}. A related idea is the learning of 2D \cite{florence18dense} and 3D \cite{simeonov22neural,simeonov22se,ryu22equivariant,chun23local} descriptor fields, which provide a semantic embedding for any point on an object. An arbitrary key point can then be matched across object instances using its embedding. We specifically compare to \citet{simeonov22neural,simeonov22se} and show that our method requires fewer demonstrations. In separate lines of works, \citet{pan22taxpose} (also included in our comparison) tackled object re-arrangement using cross-attention \cite{vaswani17attention} between point clouds and \citet{wen22you} used pose estimation to solve precise object insertion tasks. \citet{shridhar22perceiveractor} leveraged language embeddings to learn multi-goal $\mathrm{SE}(3)$ manipulation policies.
-
-% We build on a body of work in robotics that aims to learn generalizable manipulation policies from few demonstrations. A seminal idea in the literature is based on key-point representations of objects \evdp{cite the paper that introduced the idea}. \citet{manuelli19kpam} manually create a dataset of semantically meaningful key-points, such as the rim and the handle of a mug, and train a classifier to detect key-points on novel object instances. A task is defined as a time series of key-point positions. Then, a trajectory for a previously unseen object can be computed by matching the key-points on the novel object to the key-point positions seen in a demonstration. In comparison, our method does not require a manual labeling of key-points -- we use the inferred geometry of objects to automatically extract interaction points. \citet{gao21kpam,gao21kpamsc} further extend the key-point framework with feedback control and collision checking. Later works addressed key-point learning \cite{qin20keto,vecerik20s3k,manuelli20keypoints,turpin21gift}.
-
-% A related idea is the learning of descriptors attached to arbitrary 2D or 3D key-points. \citet{florence18dense} use self-supervised learning to learn dense descriptors from images. These descriptors can be used to compute similarities of arbitrary key-points between different instances and poses of objects. \citet{chen22neural} compute descriptors of an arbitrary 3D coordinate, called Neural Descriptor Fields, using an implicit shape representation neural network conditioned on a point cloud \cite{mescheder19occupancy}. By attaching a pose of an object to a set of descriptors, they can match e.g.~the pose of a handle of a mug across different mug instances and poses. The method is used re-arrange objects with a variable initial pose and a fixed goal. \citet{simeonov22se,ryu22equivariant} represent pairs of objects using Neural Descriptor Fields to enable generalization across goal poses. \citet{chun23local} further leverage the locality bias of Neural Descriptor Fields to generalize demonstrations across object classes.
-
-% Other prior works relied on CAD model matching \cite{klank09realtime,brook11collaborative,beetz11robotic,jakel12learning} and shape primitives \cite{miller03automatic} to reproduce grasps or manipulation trajectories. However, it can be difficult to generalize these methods to novel instances of objects. Recently, \citet{wen22you} tackled category-level manipulation by re-mapping key poses of objects across instances. \citet{pan22taxpose} make predictions about the desired pose of a child object related to a parent object (e.g. hanging a mug on a mug-tree) using cross-attention \cite{vaswani17attention} between the pair of point clouds.
+\textbf{Few-shot Learning of Manipulation Policies:} Keypoint based methods have been used in few-shot learning of object re-arrangement \cite{manuelli19kpam,gao21kpam,gao21kpamsc}. These methods rely on human-annotated object keypoints, which can be time-consuming to collect. Our work does not require manual annotation. Follow-up works proposed learned keypoints for learning tool affordances \cite{qin20keto,vecerik20s3k,turpin21gift} and for model-based reinforcement learning \cite{manuelli20keypoints}. A related idea is the learning of 2D \cite{florence18dense} and 3D \cite{simeonov22neural,simeonov22se,ryu22equivariant,chun23local} descriptor fields, which provide a semantic embedding for any point on an object. An arbitrary key point can then be matched across object instances using its embedding. We specifically compare to \citet{simeonov22neural,simeonov22se} and show that our method requires fewer demonstrations. In separate lines of works, \citet{pan22taxpose} (also included in our comparison) tackled object re-arrangement using cross-attention \cite{vaswani17attention} between point clouds and \citet{wen22you} used pose estimation to solve precise object insertion tasks. %
+%\citet{shridhar22perceiveractor} leveraged language embeddings to learn multi-goal $\mathrm{SE}(3)$ manipulation policies.
 
 \textbf{Shape Warping and Manipulation:} We use a learned model of in-class shape warping originally proposed by \citet{rodriguez18learning}. This model was previously used to transfer object grasps \cite{rodriguez18transferring,rodriguez18transferringa,klamt18supervised} and parameters for skills such as pouring liquids \cite{thompson21shapebased} (previously explored by \cite{brandi14generalizing}). Our method jointly infers the shape and pose of an object; prior work assumed object pose to be either given \cite{thompson21shapebased} or detected using a neural pose detector \cite{klamt18supervised}. Gradient descent on both the pose and the shape was previously used by \citet{rodriguez18transferring,rodriguez18transferringa}, but only to correct for minor deviations in pose. A second related line of work focuses on detecting the contacts between a gripper and an object, and then warping the contact points to fit a novel object \cite{li07datadriven,benamor12generalization,hillenbrand12transferring,jakel12learning,stouraitis15functional,rodriguez18learning,pavlichenko19autonomous,tian19transferring}. Finally, point-cloud warping has been used to manipulate deformable objects \cite{lee15learning,schulman16learning}.
 
-% Prior works explored the idea of learning a generative model of point clouds through non-rigid point cloud registration \cite{rodriguez18transferring,rodriguez18transferringa,klamt18supervised,thompson21shapebased}. The model is used to grasp objects based on partial point clouds \cite{rodriguez18transferring,rodriguez18transferringa,klamt18supervised} and to parameterize motion primitives \cite{thompson21shapebased}. In contrast, we learn a generative model of meshes, which we use to find interaction points in demonstrations of manipulation tasks, which in turn enable generalization across object instances. In addition, the pose of objects is either assumed to be given \cite{thompson21shapebased} or detected using a neural pose detector \cite{klamt18supervised}. We propose joint shape and pose inference using gradient descent with random restarts. Gradient descent on both the pose and the shape was used in \cite{rodriguez18transferring,rodriguez18transferringa}, but only to correct for minor deviations in pose. % TODO: ... also \cite{simeonov20long,you21omnihang,menon22viewpoint,lu22online,wen22you,cong23comprehensive} ...
-
-% A second related line of work focuses on detecting the contacts between a gripper and an object, and then warping the contact points to fit a novel object \cite{li07datadriven,benamor12generalization,hillenbrand12transferring,jakel12learning,stouraitis15functional,rodriguez18learning,pavlichenko19autonomous,tian19transferring}. Instead of directly warping the contact points, we first register them on the canonical mesh corresponding to the grasped object class. This way, we can predict grasps based on partial point clouds; we can even grasp a part of the object that is visually occluded. % TODO: more works
-
-% Finally, point cloud warping has been used to manipulate deformable objects \cite{lee15learning,schulman16learning} and to parameterize a pouring skill \cite{brandi14generalizing}.
-
-%-- \cite{rodriguez18transferring,rodriguez18transferringa}: Similar to Skye's method; they learn a latent space of displacements w.r.t. a canonical point cloud using PCA. During inference, they use gradient descent to solve for both shape and pose. But, they do not tackle the problem of local minima and hence require the shapes to be already almost in alignment. I could give the example of a handle of a mug getting hidden because of local minima and how we solve that. They then use the latent space to somehow warp the grasp actions of a humanoid hand.
-
-% \section{Background: Shape Warping by CPD and Gradient Descent}
-% \section{Background: Coherent Point Drift (CPD)}
 \section{Background}
 \label{sec:background}
 
@@ -284,25 +273,30 @@ Note that $\pci \in \mathbb{R}^{n \times 3}$ and $\pcj \in \mathbb{R}^{m \times 
 
 \section{Interaction Warping}
 
-\begin{figure}
+\begin{figure}[b!]
     \centering
-    \includegraphics[width=\textwidth]{figures/main_figure2.pdf}
-    \caption{Caption}
-    \label{fig:enter-label}
+    \includegraphics[width=0.9\textwidth]{figures/main_figure2.pdf}
+    \caption{Interaction Warping pipeline for predicting grasp and placement poses from point clouds.}
+    \label{fig:main}
 \end{figure}
 
-This section describes \textbf{Interaction Warping (IW)}, our proposed imitation method. Prior to using IW, we assume that we have first trained a set of category-level generative object models of the form described in Section~\ref{sec:background}. Then, given a single demonstration of a desired manipulation activity, we detect the objects in the demonstration using off-the-shelf models. For each object in the demonstration that matches a previously trained generative model (Section~\ref{sec:background}), we fit the model to the object in order to get the pose and completed shape of the object. Next, for each grasp, place, or way-point, we project the relative poses of the objects involved onto the canonical models for the relevant object categories. This is accomplished by identifying \emph{interaction points} on pairs of objects that interact and corresponding those points with the matching points in the canonical object models. Finally, we reproduce the demonstration in a new scene with novel in-category object instances by projecting the demonstrated interaction points onto the completed object instances in the new scene.
+This section describes \textbf{Interaction Warping (IW)}, our proposed imitation method (Figure \ref{fig:main}). We assume that we have first trained a set of category-level generative object models of the form described in Section~\ref{sec:background}. Then, given a single demonstration of a desired manipulation activity, we detect the objects in the demonstration using off-the-shelf models. For each object in the demonstration that matches a previously trained generative model, we fit the model to the object in order to get the pose and completed shape of the object (Section \ref{sec:methods:scene} and \ref{sec:methods:mesh}).
+%Next, for each grasp or placement, we project the relative poses of the objects involved onto the canonical models for the relevant object categories (Section \ref{sec:methods:cloning}).
+Next, we identify \emph{interaction points} on pairs of objects that interact and corresponding those points with the matching points in the canonical object models. Finally, we reproduce the demonstration in a new scene with novel in-category object instances by projecting the demonstrated interaction points onto the completed object instances in the new scene (Section \ref{sec:methods:cloning}).
 
 \subsection{Joint Shape and Pose Inference}
 \label{sec:methods:scene}
 
-In order to manipulate objects in $\mathrm{SE}(3)$, we want to jointly infer the pose and shape of an object represented by a point cloud $\pcx{\mathrm{partial}}$. We observe a real-world (or simulated) point cloud using one to three RGB-D cameras and we fuse the outputs into a single point cloud. We detect each object of interest in the point cloud either using clustering and heuristics (Section \ref{sec:exp:rearrangement}) or using pre-trained RGB-based open-vocabulary object detection and instance segmentation models (Section \ref{sec:exp:wild}).
-
-We infer the pose and shape of point cloud $Y \in \mathbb{R}^{n \times 3}$ by minimizing a loss function,
+In order to manipulate objects in $\mathrm{SE}(3)$, we want to jointly infer the pose and shape of an object represented by a point cloud $\pcx{\mathrm{partial}}$.
+%We observe a real-world (or simulated) point cloud using one to three RGB-D cameras and we fuse the outputs into a single point cloud. We detect each object of interest in the point cloud either using clustering and heuristics (Section \ref{sec:exp:rearrangement}) or using pre-trained RGB-based open-vocabulary object detection and instance segmentation models (Section \ref{sec:exp:wild}).
+% We infer the pose and shape of point cloud $Y \in \mathbb{R}^{n \times 3}$ by minimizing a loss function,
+To do so, we warp and transform point cloud $Y \in \mathbb{R}^{n \times 3}$ to minimize a loss function,
 \begin{align}
     \mathcal{L}(Y) = \mathcal{D}(Y, \pcx{\mathrm{partial}}) + \beta \max_k \norm{Y_k}_2^2,
 \end{align}
-which is akin to Equation \ref{eq:background:loss} with an added regularization term.  The second term is a regularizer on the size of the decoded object. Our implementation regularizes the object to fit into the smallest possible ball. Other options are possible, such as directly regularizing $v$ and $s$, regularizing the $L_2$ norm of $Y$, etc. The main reason for the regularizer is to prevent large predicted meshes in real-world experiments, which might make it impossible to find collision-free motion plans.
+which is akin to Equation \ref{eq:background:loss} with the addition of the second term, a regularizer on the size of the decoded object. Our implementation regularizes the object to fit into the smallest possible ball.
+% Other options are possible, such as directly regularizing $v$ and $s$, regularizing the $L_2$ norm of $Y$, etc.
+The main reason for the regularizer is to prevent large predicted meshes in real-world experiments, which might make it impossible to find collision-free motion plans.
 
 We parameterize $Y$ as a warped, scaled, rotated and translated canonical point cloud,
 \begin{align}
@@ -313,17 +307,19 @@ Here, $\pcc$ is a canonical point cloud and $v \in \mathbb{R}^d$ parameterizes a
 
 We directly optimize $\mathcal{L}$ with respect to $v, s$ and $t$ using the Adam optimizer \cite{kingma17adam}. We parameterize $R$ using $\hat{R} \in \mathbb{R}^{2 \times 3}$, an arbitrary matrix, and perform Gram-Schmidt orthogonalization (Algorithm \ref{alg:gram_schmidt}) to compute a valid rotation matrix $R$. This parameterization has been shown to enable stable learning of rotation matrices \cite{falorsi18explorations, park22learning}. We run the optimization with many initial random restarts, please see Appendix \ref{appendix:method:inference} for further details.
 
+The inferred $v, s$ represent the shape of the object captured by $\pcx{\mathrm{partial}}$ and $R, t$ represent its pose.
+
 \subsection{From Point Clouds to Meshes}
 \label{sec:methods:mesh}
 
-We infer the shape of objects using point clouds, but we need object meshes to perform collision checking. This is important for finding contacts between objects and performing motion planning (Section \ref{sec:method:cloning}). We propose a simple approach for recovering the mesh of the warped object based on the vertices and faces of the canonical object.
+We infer the shape and pose of objects using point clouds, but we need object meshes to perform collision checking. This is important for finding contacts between objects and performing motion planning (Section \ref{sec:methods:cloning}). We propose a simple approach for recovering the mesh of the warped object based on the vertices and faces of the canonical object.
 
 First, we need to warp the vertices of the canonical object. To do so, the vertices need to be a part of $\pcc$ because our model only knows how to warp points in $\pcc$ (Section \ref{sec:background}). However, these vertices (extracted from meshes made by people) are usually very biased (e.g. 90\% of the vertices might be in the handle of a mug), which results in learned warps that are ignore some parts of the object. Second, we add points to $\pcc$ that are randomly sampled on the surface of the canonical mesh. $\pcc$ is then composed of approximately the same number of mesh vertices and random surface samples, leading to a better learned warping. We construct $\pcc$ such that the first $V$ points are the vertices; note that the ordering of points in $\pcc$ does not change as it is warped.
 
-Given a warped point cloud $\pcx{v}$ (Equation \ref{eq:background:warp}), the first $V$ points are the warped mesh vertices. We combine them with the faces of the canonical object to create a warped mesh, $M^{(v)}$. Faces are represented as triples of vertices and these stay the same across object warps.
+Given a warped, rotated and translated point cloud $Y$ (Equation \ref{eq:method:warp}), the first $V$ points are the warped mesh vertices. We combine them with the faces of the canonical object to create a warped mesh $M$. Faces are represented as triples of vertices and these stay the same across object warps.
 
 \subsection{Transferring Robot Actions via Interaction Points}
-\label{sec:method:cloning}
+\label{sec:methods:cloning}
 
 \begin{figure}
     \centering
@@ -375,29 +371,29 @@ Given a warped point cloud $\pcx{v}$ (Equation \ref{eq:background:warp}), the fi
 
 % For placement actions, we generalize the interaction points to include nearby points between a pair of objects. 
 
-Consider the example of a mug $\pcx{v}$ that is warped using Equation \ref{eq:background:warp}. We can select any point $\pcx{v}_i$ and track it as the mug changes its shape. For example, if the point lies on the handle of the mug, we can use it to align handles of mugs of different shapes and sizes. That can, in turn, facilitate the transfer of manipulation policies across mugs. The key question is how to find the points $\pcx{v}_i$ relevant to a particular task.
+Consider the example of a point cloud of a mug $Y$ that is warped using Equation \ref{eq:method:warp}. We can select any point $Y_i$ and track it as the mug changes its shape and pose. For example, if the point lies on the handle of the mug, we can use it to align handles of mugs of different shapes and sizes. That can, in turn, facilitate the transfer of manipulation policies across mugs. The key question is how to find the points $Y_i$ relevant to a particular task. We call these \emph{interaction points}.
 
-We propose the idea of \textit{interaction points}, which are specific points on objects automatically found from a demonstration of a task. We use different techniques to find interaction points for object grasps and placements, and we describe them in turn.
+% We propose the idea of \textit{interaction points}, which are specific points on objects automatically found from a demonstration of a task. We use different techniques to find interaction points for object grasps and placements, and we describe them in turn.
 
-\textbf{Grasp Interaction Points:} We define the grasp interaction points as the pairs of contact points between the gripper and the object at the point of grasp. Let $\pcx{v}$ and $M^{(v)}$ be the point cloud and mesh respectively for the grasped object inferred by our method (Section \ref{sec:methods:scene}, \ref{sec:methods:mesh}). Let $M^{(G)}$ be a mesh of our gripper and $T_G$ the pose of the grasp. We use \texttt{pybullet} collision checking to find $B$ pairs of contact points $ (p_j^{(v)}, p_j^{(G)})_{j=1}^B$, where $p_j^{(v)}$ is on the surface of $M^{(v)}$ and $p_j^{(G)}$ is on the surface of $M^{(G)}$ in pose $T_G$. We want to warp points $p_j^{(v)}$ onto a different shape, but our model only knows how to warp points in $\pcx{v}$. Therefore, we find a set of indices $I_{G} = \{i_1,..., i_B\}$, where $\pcx{v}_{i_j}$ is the nearest neighbor of $p^{(v)}_j$.
+\textbf{Grasp Interaction Points:} We define the grasp interaction points as the pairs of contact points between the gripper and the object at the point of grasp. Let $Y^{(A)}$ and $M^{(A)}$ be the point cloud and mesh respectively for the grasped object inferred by our method (Section \ref{sec:methods:scene}, \ref{sec:methods:mesh}). Let $M^{(G)}$ be a mesh of our gripper and $T_G$ the pose of the grasp. We use \texttt{pybullet} collision checking to find $P$ pairs of contact points $ (p_j^{(A)}, p_j^{(G)})_{j=1}^P$, where $p_j^{(A)}$ is on the surface of $M^{(A)}$ and $p_j^{(G)}$ is on the surface of $M^{(G)}$ in pose $T_G$ (Figure \ref{fig:contacts}a). We want to warp points $p_j^{(A)}$ onto a different shape, but our model only knows how to warp points in $Y^{(A)}$. Therefore, we find a set of indices $I_{G} = \{i_1,..., i_P\}$, where $Y^{(A)}_{i_j}$ is the nearest neighbor of $p^{(A)}_j$.
 
-\textbf{Transferring Grasps:} In a new scene, we infer the point cloud of the new object $\pcx{v'}$. We solve for the new grasp as the optimal transformation $T_G^*$ that aligns the pairs of points $(\pcx{v'}_{i_j}, p^{(G)}_j), j \in \{1, ..., B\}, i_j \in I_G$. Here, $\pcx{v'}_{i_j}$ are the contact points from the demonstration warped to a new object instance. We compute $T_G^*$ that minimizes the pairwise distances analytically \cite{horn88computation}.
+\textbf{Transferring Grasps:} In a new scene, we infer the point cloud of the new object $Y^{(A')}$ (Eq. \ref{eq:method:warp}). We solve for the new grasp as the optimal transformation $T_G^*$ that aligns the pairs of points $(Y^{(A')}_{i_j}, p^{(G)}_j), j \in \{1, ..., P\}, i_j \in I_G$. Here, $Y^{(A')}_{i_j}$ are the contact points from the demonstration warped to a new object instance. Note that there is a correspondence between the points in $Y^{(A)}$ and $Y^{(A')}$; shape warping does not change their order. We predict the grasp $T_G^*$ (Figure \ref{fig:grasps_and_placements}a) that minimizes the pairwise distances analytically using an algorithm from \citet{horn88computation}.
 
 \textbf{Placement Interaction Points:} For placement actions, we look at two objects being placed in relation to each other, such as a mug being placed on a mug-tree. Here, we define interaction points as pairs of \textit{nearby points} between the two object, a generalization of contact points. We use nearby points so that the two objects do not have to make contact in the demonstration; e.g., the mug might not be touching the tree before it is released from the gripper. Similarly, the demonstration of an object being dropped into a container might not include contacts.
 
-Let $\pcx{v_1}$ and $\pcx{v_2}$ be the inferred point clouds of the two objects. We capture the original point clouds from a demonstration right before the robot opens its gripper. We find pairs of nearby points with $L_2$ distance below $\delta$, $\{ (p^{(v_1)} \in \pcx{v_1}, p^{(v_2)} \in \pcx{v_2}) : \norm{p^{(v_1)} - p^{(v_2)}} < \delta \}$. Since there might be tens of thousands of these pairs, we find a representative sample (Appendix X). We record the indices of points $p^{(v_2)}$ in $\pcx{v_2}$ as $I_P = \{ i_1, i_2, ..., i_B \}$.
+Let $Y^{(A)}$ and $Y^{(B)}$ be the inferred point clouds of the two objects. We capture the original point clouds from a demonstration right before the robot opens its gripper. We find pairs of nearby points with $L_2$ distance below $\delta$, $\{ (p^{(A)} \in Y^{(A)}, p^{(B)} \in Y^{(B)}) : \norm{p^{(A)} - p^{(B)}} < \delta \}$. Since there might be tens of thousands of these pairs, we find a representative sample using farthest point sampling \cite{eldar94farthest}. We record the indices of points $p^{(B)}_j$ in $Y^{(B)}$ as $I_P = \{ i_1, i_2, ..., i_P \}$.
 
-We further add $p^{(v_2)}$ as \textbf{virtual points} into $\pcx{v_1}$ -- this idea is illustrated in Figure \ref{fig:contacts} (b) and (c). For example, we wish to solve for a pose that places a mug on a tree, such that the branch of the tree intersects the mug's handle. But, there is no point in the middle of the mug's handle that we can use. Hence, we add the nearby points $p^{(v_2)}$ (e.g. points on the branch of the tree) as virtual points $q^{(v_1)}$ to $\pcx{v_1}$. We anchor $q^{(v_1)}$ using k-nearest-neighbors so that it changes as we warp $\pcx{v_1}$. Specifically, for each point $p^{(v_2)}$ we find $L$ nearest neighbors $(n_1, n_2, ..., n_L)$ in $\pcx{v_1}$ and anchor $q^{(v_1)}$ as follows,
+We further add $p^{(B)}_j$ as \textbf{virtual points} into $Y^{(A)}$ -- this idea is illustrated in Figure \ref{fig:contacts} (b) and (c). For example, we wish to solve for a pose that places a mug on a tree, such that the branch of the tree intersects the mug's handle. But, there is no point in the middle of the mug's handle that we can use. Hence, we add the nearby points $p^{(B)}_j$ (e.g. points on the branch of the tree) as virtual points $q^{(A)}_j$ to $Y^{(A)}$. We anchor $q^{(A)}_j$ using L-nearest-neighbors so it warps together with $Y^{(A)}$. Specifically, for each point $p^{(B)}_j$ we find $L$ nearest neighbors $(n_{j,1}, ..., n_{j,L})$ in $Y^{(A)}$ and anchor $q^{(A)}_j$ as follows,
 \begin{align}
-    q^{(v_1)} = \frac{1}{L} \sum_{k=1}^L \pcx{v_1}_{n_k} + \underbrace{(p^{(v_2)} - \pcx{v_1}_{n_k})}_{\Delta_k} = p^{(v_2)}.
+    q^{(A)}_j = \frac{1}{L} \sum_{k=1}^L Y^{(A)}_{n_{j,k}} + \underbrace{(p^{(B)}_j - Y^{(A)}_{n_{j,k}})}_{\Delta_{j,k}} = p^{(B)}_j.
 \end{align}
-To transfer the placement, we save the neighbor indices $n_k$ and the neighbor displacements $\Delta_k$.
+To transfer the placement, we save the neighbor indices $n_{j,k}$ and the neighbor displacements $\Delta_{j,k}$.
 
-\textbf{Transferring Placements:} We infer the point clouds of the pair of new objects $\pcx{v'_1}$ and $\pcx{v'_2}$. We calculate the positions of the virtual points with respect to the warped nearest neighbors,
+\textbf{Transferring Placements:} We infer the point clouds of the pair of new objects $Y^{(A')}$ and $Y^{(B')}$. We calculate the positions of the virtual points with respect to the warped nearest neighbors,
 \begin{align}
-    q^{(v'_1)} = \frac{1}{L} \sum_{k=1}^L \pcx{v'_1}_{n_k} + \Delta_k.
+    q^{(A')}_j = \frac{1}{L} \sum_{k=1}^L Y^{(A')}_{n_{j,k}} + \Delta_{j,k}.
 \end{align}
-We then construct pairs of points $(q^{(v'_1)}_j, \pcx{v'_2}_{i_j}), j \in \{1, ..., B\}, i_j \in I_P$ and find the optimal transformation of the first object $T^*_P$ that minimizes the distance between the point pairs. Since we know how we picked up the first object, we can transform $T^*_P$ into the coordinate frame of the robot hand and execute the action of placing object 1 onto object 2.
+We then construct pairs of points $(q^{(A')}_j, Y^{(B')}_{i_j}), j \in \{1, ..., B\}, i_j \in I_P$ and find the optimal transformation of the first object $T^*_P$ that minimizes the distance between the point pairs. Since we know how we picked up the first object, we can transform $T^*_P$ into the coordinate frame of the robot hand and execute the action of placing object A' onto object B' (Figure \ref{fig:grasps_and_placements}b).
 
 % Our key contribution is a generalizable representation of 3D robotic actions with respect to manipulated objects. We propose an action abstraction we call \textit{interaction points}: pairs of these points capture the interaction of either a robot and an object, or a pair of objects. Crucially, we are able to warp interaction points to novel objects without any additional learning. We describe the cloning of grasping and relational object placement, but interaction points could be also used in, e.g., pushing or tossing. We use a single demonstration of a grasp or a placement to identify the interaction points.
 
@@ -433,7 +429,7 @@ We then construct pairs of points $(q^{(v'_1)}_j, \pcx{v'_2}_{i_j}), j \in \{1, 
 % \end{align}
 % We can also warp the second object to shape $v'_2$ using Equation \ref{eq:contact_point_warping} and compute the new optimal transform $T_{\text{rel}}$ using Equation \ref{eq:coordinate_transform}. Finally, we transform $T_{\text{rel}}$ from the coordinate space of object 1 to the coordinate space of the gripper holding the object (we record the relative transform between the pose of the object and the gripper when we pick it up). Hence, we get $T_{\text{place}}$ that can be executed by a physical robot.
 
-
+%Warping
 % \subsection{Action: Warping of Grasps and Placements}
 % \label{sec:methods:cloning}
 
@@ -465,33 +461,33 @@ We evaluate both the perception and imitation learning capabilities of Interacti
 \subsection{Object Re-arrangement}
 \label{sec:exp:rearrangement}
 
-\begin{figure}[]
-    \centering
+% \begin{figure}[]
+%     \centering
 
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/1.jpg}
-    \end{subfigure}
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/6.jpg}
-    \end{subfigure}
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/8.jpg}
-    \end{subfigure}
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/9.jpg}
-    \end{subfigure}
-    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-        \centering
-        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/10.jpg}
-    \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/1.jpg}
+%     \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/6.jpg}
+%     \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/8.jpg}
+%     \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/9.jpg}
+%     \end{subfigure}
+%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+%         \centering
+%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/10.jpg}
+%     \end{subfigure}
 
-    \caption{Example of an episode of putting a mug on a tree starting from a tilted mug pose.}
-    \label{fig:mug_tree_episode_small}
-\end{figure}
+%     \caption{Example of an episode of putting a mug on a tree starting from a tilted mug pose.}
+%     \label{fig:mug_tree_episode_small}
+% \end{figure}
 
 \begin{table*}[h]
     \centering
@@ -539,11 +535,11 @@ We evaluate both the perception and imitation learning capabilities of Interacti
 
 \textbf{Setup:} For our simulated experiment, we use an open-source environment with three tasks: mug on a mug-tree, bowl on a mug and a bottle in a  container \cite{simeonov22se}. Given a segmented point cloud of the initial scene, the goal is to predict the pose of the child object relative to the parent object (e.g.~the mug relative to the mug-tree) so that the task constraint is satisfied. The simulation does not test grasp prediction.
 
-For our real-world experiment, we perform both grasps and placements based on a single demonstration. We capture a fused point cloud using three RealSense D455 depth cameras. We use point-cloud clustering and heuristics to detect objects in the real-world scenes (details in Appendix \ref{appendix:experiment:rearrangement}) and perform motion planning with collision checking based on the meshes predicted by our method. We evaluate the ability of each method to pick and place unseen objects with a varying shape and pose (Figure \ref{fig:object_sets}).
+In our real-world experiment, we perform both grasps and placements based on a single demonstration. We capture a fused point cloud using three RGB-D. We use point-cloud clustering and heuristics to detect objects in the real-world scenes (details in Appendix \ref{appendix:experiment:rearrangement}) and perform motion planning with collision checking based on the meshes predicted by our method. We evaluate the ability of each method to pick and place unseen objects with a varying shape and pose (Figure \ref{fig:object_sets}).
 
 \textbf{Result:} We find that Interaction Warping generally outperforms Relational Neural Descriptor Fields \cite{simeonov2022neural} and TAX-Pose \cite{pan22taxpose} on the simulated relational-placement prediction tasks (Table \ref{tab:simulation}) with 20 times fewer training objects. IW can succeed with one demonstration of a task, whereas R-NDF and TAX-Pose usually require five demonstrations. We use an open-source implementation of R-NDF provided by the authors \footnote{\url{https://github.com/anthonysimeonov/relational_ndf}}, which differs in performance from the results reported in \cite{simeonov22se}. TAX-Pose struggles with precise object placements in the bowl on mug and bottle in box tasks; it often places the pair of objects inside one another.
 
-In real-world pick and place experiments, we demonstrate the ability of IW to solve the three object re-arrangement tasks -- mug on tree, bowl on mug and bottle in box -- with unseen objects and variation in the starting pose of objects (Table \ref{tab:real_world}). We find that (Relational) Neural Descriptor Fields \cite{simeonov22neural,simeonov22se} struggle with the partial and noisy real-world point clouds. This often results in both the pick and place actions being too imprecise to successfully solve the task. Pre-training (R-)NDF on real-world point clouds could help, but note that IW was also pre-trained on simulated point clouds. We find that the warping of canonical objects is more robust to noisy and occluded point clouds. We show an example episode of mug on tree in Figure \ref{fig:mug_tree_episode_small}.
+In real-world pick and place experiments, we demonstrate the ability of IW to solve the three object re-arrangement tasks -- mug on tree, bowl on mug and bottle in box -- with unseen objects and variation in the starting pose of objects (Table \ref{tab:real_world}). We find that (Relational) Neural Descriptor Fields \cite{simeonov22neural,simeonov22se} struggle with the partial and noisy real-world point clouds. This often results in both the pick and place actions being too imprecise to successfully solve the task. Pre-training (R-)NDF on real-world point clouds could help, but note that IW was also pre-trained on simulated point clouds. We find that the warping of canonical objects is more robust to noisy and occluded point clouds. We show an example episode of mug on tree in Figure \ref{fig:mug_tree_episode}.
 
 We used the meshes predicted by IW to perform collision checking during motion planning. We do not perform collision checking (other than to avoid contact with the table) when using (R-)NDF as these methods do not predict object meshes, but failures due to a collision between the robot and one of the object were infrequent in real-world (R-)NDF trials.
 
@@ -605,7 +601,7 @@ We used the meshes predicted by IW to perform collision checking during motion p
         \caption{}
     \end{subfigure}
 
-    \caption{Grasp prediction in the wild: (a) an RGB-D (depth not shown) image from a RealSense D435 camera, (b) open-vocabulary object detection and segmentation using Detic \cite{zhou22detecting} and Segment Anything \cite{kirillov23segment}, (c) object meshes predicted by our method based on segmented point clouds (we filter out distant and small objects), (d) meshes projected into the original image, (e) grasps predicted by interaction warping projected into the original image. Figure \ref{fig:real2sim2real_part2} has additional examples.}
+    \caption{Grasp prediction in the wild: (a) an RGB-D (depth not shown) image, (b) open-vocabulary object detection and segmentation using Detic \cite{zhou22detecting} and Segment Anything \cite{kirillov23segment}, (c) object meshes predicted by our method based on segmented point clouds (we filter out distant and small objects), (d) meshes projected into the original image, (e) grasps predicted by interaction warping projected into the original image. Figure \ref{fig:real2sim2real_part2} has additional examples.}
     \label{fig:real2sim2real}
 \end{figure}
 
@@ -613,20 +609,13 @@ We used the meshes predicted by IW to perform collision checking during motion p
 
 \textbf{Result:} We show the results for two example scenes in Figure \ref{fig:real2sim2real} and \ref{fig:real2sim2real_part2}. Our perception pipeline can successfully detect objects in images with cluttered backgrounds. Our warping algorithm accounts for the variation in the shape and size of objects and our interaction warping algorithm can generalize the demonstrated grasps to the novel objects.
 
-\section{Limitations}
+\section{Limitations and Conclusion}
+
+We introduced Interaction Warping, a method for one-shot learning of $\mathrm{SE}$(3) robotic manipulation policies. We demonstrated that warping of shapes and interaction points leads to successful one-shot learning of object re-arrangement policies. We also showed that we can use open-vocabulary detection and segmentation models to detect objects in the wild and predict their meshes and possible robot grasps. 
 
 Our method requires segmented point clouds of objects. We demonstrated a pipeline for real-world detection in Section \ref{sec:exp:wild}, but it can be difficult to capture clean point clouds that align with RGB-based segmentation predictions. The process of jointly inferring shape and pose of an object takes around 25 seconds per object on a single desktop GPU. Future work could train an additional neural network to amortize the inference, or to predict favorable initialization. We use a PCA model of shape warps for simplicity; this model cannot capture the details of objects, such as the detailed shape of the head of a bottle. A model with higher capacity should be used for tasks that require high precision. Finally, our predicted policy is fully determined by the shape warping model and a single demonstration; our method does not learn from its failures.
 
-% \begin{itemize}
-%     \item We run joint shape warping and pose estimation using gradient descent and many random restarts. This process takes around 25 seconds per object on a single desktop GPU. Future work could train an additional neural network to skip the gradient descent, or to predict favorable initialization.
-%     \item Shape warping represented using PCA cannot capture the detail of each object. Tasks that require a high-degree of precision might have a low success rate. But, PCA can be easily replaced with a higher capacity model (which might require more than 10 training meshes per object class).
-%     \item Our method does not learn from its failures; its behavior is fully determined by the shape warping model and a single demonstration. But, the entire prediction process, from shape warping to interaction point cloning, is technically fully differentiable.
-%     \item While relatively robust to partial and noisy point clouds, our method cannot reason about object parts that are not shown in the point cloud. For example, our method currently cannot infer that a handle of a mug is occluded by the mug itself if it is not shown in the point cloud. It would instead predict an arbitrary orientation of the mug.
-% \end{itemize}
-
-\section{Conclusion}
-
-We introduced Interaction Warping, a method for one-shot learning of $\mathrm{SE}$(3) robotic manipulation policies. We demonstrated that warping of shapes and interaction points leads to successful one-shot learning of object re-arrangement policies. We also showed that we can use open-vocabulary detection and segmentation models to detect objects in the wild and predict their meshes and possible robot grasps. Future work could equip interaction warping with a more expressive shape warping model, so that it can predict 3D meshes of novel objects with high precision. Another interesting direction is to combine shape warping with object decomposition \cite{tenorth13decomposing,vahrenkamp16partbased,chen22neural} to learn representations of parts of complex objects, such as the door of a toaster oven or a water tank of a coffee machine. Shape warping could be used to represent articulated as well as deformable objects.
+Future work could equip interaction warping with a more expressive shape warping model, so that it can predict 3D meshes of novel objects with high precision. Another interesting direction is to combine shape warping with object decomposition \cite{tenorth13decomposing,vahrenkamp16partbased,chen22neural} to learn representations of parts of complex objects, such as the door of a toaster oven or a water tank of a coffee machine. Shape warping could be used to represent articulated as well as deformable objects.
 
 %===============================================================================
 
@@ -692,17 +681,17 @@ We use a UR5 robotic arm with a Robotiq gripper. We capture the point cloud usin
 
     \begin{subfigure}{(\linewidth - 0.05\linewidth)/3}
         \centering
-        \includegraphics[width=\linewidth]{figures/object_sets/mug_on_tree.png}
+        \includegraphics[width=\linewidth]{figures/object_sets/mug_on_tree.jpg}
         \caption{}
     \end{subfigure}
     \begin{subfigure}{(\linewidth - 0.05\linewidth)/3}
         \centering
-        \includegraphics[width=\linewidth]{figures/object_sets/bowl_on_mug.png}
+        \includegraphics[width=\linewidth]{figures/object_sets/bowl_on_mug.jpg}
         \caption{}
     \end{subfigure}
     \begin{subfigure}{(\linewidth - 0.05\linewidth)/3}
         \centering
-        \includegraphics[width=\linewidth]{figures/object_sets/bottle_in_box.png}
+        \includegraphics[width=\linewidth]{figures/object_sets/bottle_in_box.jpg}
         \caption{}
     \end{subfigure}
 
