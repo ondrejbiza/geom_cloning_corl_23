@@ -461,33 +461,33 @@ We evaluate both the perception and imitation learning capabilities of Interacti
 \subsection{Object Re-arrangement}
 \label{sec:exp:rearrangement}
 
-% \begin{figure}[]
-%     \centering
+\begin{figure}[]
+    \centering
 
-%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/1.jpg}
-%     \end{subfigure}
-%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/6.jpg}
-%     \end{subfigure}
-%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/8.jpg}
-%     \end{subfigure}
-%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/9.jpg}
-%     \end{subfigure}
-%     \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
-%         \centering
-%         \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/10.jpg}
-%     \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/1.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/6.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/8.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/9.jpg}
+    \end{subfigure}
+    \begin{subfigure}{(\linewidth - 0.05\linewidth)/5}
+        \centering
+        \includegraphics[width=\linewidth]{figures/episodes/mug_on_tree_zoom/10.jpg}
+    \end{subfigure}
 
-%     \caption{Example of an episode of putting a mug on a tree starting from a tilted mug pose.}
-%     \label{fig:mug_tree_episode_small}
-% \end{figure}
+    \caption{Example of an episode of putting a mug on a tree starting from a tilted mug pose.}
+    \label{fig:mug_tree_episode_small}
+\end{figure}
 
 \begin{table*}[h]
     \centering
@@ -524,22 +524,22 @@ We evaluate both the perception and imitation learning capabilities of Interacti
          \textbf{Method} & Pick & Pick\&Place & Pick & Pick\&Place & Pick & Pick\&Place & Pick & Pick\&Place \\
          \midrule
          NDF$^1$ \cite{simeonov22neural} & 93.3 & 26.7 & 75.0 & 33.3 & 20.0 & 6.7 & 62.8 & 22.2 \\
-         R-NDF \cite{simeonov22se} & 60.0 & 13.3 & 41.7 & 41.7 & 33.3 & 20.0 & 45.0 & 25.0 \\
-         \textbf{IW (Ours)} & \textbf{100.0} & \textbf{93.3} & \textbf{83.3} & \textbf{75.0} & \textbf{80.0} & \textbf{73.3} & \textbf{87.8} & \textbf{80.5} \\
+         R-NDF \cite{simeonov22se} & 64.0 & 12.0 & 37.5 & 37.5 & 26.7 & 20.0 & 42.7 & 23.2 \\
+         \textbf{IW (Ours)} & \textbf{96.0} & \textbf{92.0} & \textbf{87.5} & \textbf{83.3} & \textbf{86.7} & \textbf{83.3} & \textbf{90.1} & \textbf{86.2} \\
          \bottomrule
     \end{tabular}
     }
-    \caption{Success rates of \hl{real-world robot} pick-and-place experiments with a single demonstration. The manipulated object (e.g. a mug) starts in an arbitrary pose (we use a stand to get a range of poses) and the target object (e.g. a mug-tree) starts in an arbitrary upright pose. $^1$The target object (e.g. the mug tree) is in a fixed pose for this experiment, as NDF does not handle target object variation. Each entry is measured over 25 - 30 trials with unseen object pairs.}
+    \caption{Success rates of \hl{real-world} pick-and-place experiments with a single demonstration. The manipulated object (e.g. a mug) starts in an arbitrary pose (we use a stand to get a range of poses) and the target object (e.g. a mug-tree) starts in an arbitrary upright pose. $^1$The target object (e.g. the mug tree) is in a fixed pose for this experiment, as NDF does not handle target object variation. Each entry is measured over 25 - 30 trials with unseen object pairs.}
     \label{tab:real_world}
 \end{table*}
 
-\textbf{Setup:} For our simulated experiment, we use an open-source environment with three tasks: mug on a mug-tree, bowl on a mug and a bottle in a  container \cite{simeonov22se}. Given a segmented point cloud of the initial scene, the goal is to predict the pose of the child object relative to the parent object (e.g.~the mug relative to the mug-tree) so that the task constraint is satisfied. The simulation does not test grasp prediction.
+\textbf{Setup:} For our simulated experiment, we use an open-source environment with three tasks: mug on a mug-tree, bowl on a mug and a bottle in a  container \cite{simeonov22se}. Given a segmented point cloud of the initial scene, the goal is to predict the pose of the child object relative to the parent object (e.g.~the mug relative to the mug-tree) so that the task constraint is satisfied. A successful action places the object on a rack / in a container so that it does not fall down, but also does not clip within the rack / container. The simulation does not test grasp prediction.
 
 In our real-world experiment, we perform both grasps and placements based on a single demonstration. We capture a fused point cloud using three RGB-D. We use point-cloud clustering and heuristics to detect objects in the real-world scenes (details in Appendix \ref{appendix:experiment:rearrangement}) and perform motion planning with collision checking based on the meshes predicted by our method. We evaluate the ability of each method to pick and place unseen objects with a varying shape and pose (Figure \ref{fig:object_sets}).
 
-\textbf{Result:} We find that Interaction Warping generally outperforms Relational Neural Descriptor Fields \cite{simeonov2022neural} and TAX-Pose \cite{pan22taxpose} on the simulated relational-placement prediction tasks (Table \ref{tab:simulation}) with 20 times fewer training objects. IW can succeed with one demonstration of a task, whereas R-NDF and TAX-Pose usually require five demonstrations. We use an open-source implementation of R-NDF provided by the authors \footnote{\url{https://github.com/anthonysimeonov/relational_ndf}}, which differs in performance from the results reported in \cite{simeonov22se}. TAX-Pose struggles with precise object placements in the bowl on mug and bottle in box tasks; it often places the pair of objects inside one another.
+\textbf{Result:} We find that Interaction Warping generally outperforms Relational Neural Descriptor Fields \cite{simeonov2022neural} and TAX-Pose \cite{pan22taxpose} on the simulated relational-placement prediction tasks (Table \ref{tab:simulation}) with 20 times fewer training objects. IW can succeed with one demonstration of a task, whereas R-NDF and TAX-Pose usually require five demonstrations. We use an open-source implementation of R-NDF provided by the authors \cite{rndfgithub}, which differs in performance from the results reported in \cite{simeonov22se}. TAX-Pose struggles with precise object placements in the bowl on mug and bottle in box tasks; it often places the pair of objects inside one another.
 
-In real-world pick and place experiments, we demonstrate the ability of IW to solve the three object re-arrangement tasks -- mug on tree, bowl on mug and bottle in box -- with unseen objects and variation in the starting pose of objects (Table \ref{tab:real_world}). We find that (Relational) Neural Descriptor Fields \cite{simeonov22neural,simeonov22se} struggle with the partial and noisy real-world point clouds. This often results in both the pick and place actions being too imprecise to successfully solve the task. Pre-training (R-)NDF on real-world point clouds could help, but note that IW was also pre-trained on simulated point clouds. We find that the warping of canonical objects is more robust to noisy and occluded point clouds. We show an example episode of mug on tree in Figure \ref{fig:mug_tree_episode}.
+In real-world pick and place experiments, we demonstrate the ability of IW to solve the three object re-arrangement tasks -- mug on tree, bowl on mug and bottle in box -- with unseen objects (Figure \ref{fig:object_sets}) and variation in the starting pose of objects (Table \ref{tab:real_world}). We find that NDF and R-NDF \cite{simeonov22neural,simeonov22se} struggle with the partial and noisy real-world point clouds. This often results in both the pick and place actions being too imprecise to successfully solve the task. Pre-training (R-)NDF on real-world point clouds could help, but note that IW was also pre-trained on simulated point clouds. We find that the warping of canonical objects is more robust to noisy and occluded point clouds. We show an example episode of mug on tree in Figure \ref{fig:mug_tree_episode_small}.
 
 We used the meshes predicted by IW to perform collision checking during motion planning. We do not perform collision checking (other than to avoid contact with the table) when using (R-)NDF as these methods do not predict object meshes, but failures due to a collision between the robot and one of the object were infrequent in real-world (R-)NDF trials.
 
@@ -611,11 +611,11 @@ We used the meshes predicted by IW to perform collision checking during motion p
 
 \section{Limitations and Conclusion}
 
-We introduced Interaction Warping, a method for one-shot learning of $\mathrm{SE}$(3) robotic manipulation policies. We demonstrated that warping of shapes and interaction points leads to successful one-shot learning of object re-arrangement policies. We also showed that we can use open-vocabulary detection and segmentation models to detect objects in the wild and predict their meshes and possible robot grasps. 
+We introduced Interaction Warping, a method for one-shot learning of $\mathrm{SE}$(3) robotic manipulation policies. We demonstrated that warping of shapes and interaction points leads to successful one-shot learning of object re-arrangement policies. We also showed that we can use open-vocabulary detection and segmentation models to detect objects in the wild and predict their meshes and grasps. 
 
-Our method requires segmented point clouds of objects. We demonstrated a pipeline for real-world detection in Section \ref{sec:exp:wild}, but it can be difficult to capture clean point clouds that align with RGB-based segmentation predictions. The process of jointly inferring shape and pose of an object takes around 25 seconds per object on a single desktop GPU. Future work could train an additional neural network to amortize the inference, or to predict favorable initialization. We use a PCA model of shape warps for simplicity; this model cannot capture the details of objects, such as the detailed shape of the head of a bottle. A model with higher capacity should be used for tasks that require high precision. Finally, our predicted policy is fully determined by the shape warping model and a single demonstration; our method does not learn from its failures.
+\textbf{Limitations:} Our method requires segmented point clouds of objects. We demonstrated a pipeline for real-world detection in Section \ref{sec:exp:wild}, but it can be difficult to capture clean point clouds that align with RGB-based segmentation predictions. The process of jointly inferring shape and pose of an object takes around 25 seconds per object on a single desktop GPU. Future work could train an additional neural network to amortize the inference, or to predict favorable initialization. We use a PCA model of shape warps for simplicity; this model cannot capture the details of objects, such as the detailed shape of the head of a bottle. A model with higher capacity should be used for tasks that require high precision. Finally, our predicted policy is fully determined by the shape warping model and a single demonstration; our method does not learn from its failures, but it is fully differentiable.
 
-Future work could equip interaction warping with a more expressive shape warping model, so that it can predict 3D meshes of novel objects with high precision. Another interesting direction is to combine shape warping with object decomposition \cite{tenorth13decomposing,vahrenkamp16partbased,chen22neural} to learn representations of parts of complex objects, such as the door of a toaster oven or a water tank of a coffee machine. Shape warping could be used to represent articulated as well as deformable objects.
+%Future work could equip interaction warping with a more expressive shape warping model, so that it can predict 3D meshes of novel objects with high precision. Another interesting direction is to combine shape warping with object decomposition \cite{tenorth13decomposing,vahrenkamp16partbased,chen22neural} to learn representations of parts of complex objects, such as the door of a toaster oven or a water tank of a coffee machine. Shape warping could be used to represent articulated as well as deformable objects.
 
 %===============================================================================
 
